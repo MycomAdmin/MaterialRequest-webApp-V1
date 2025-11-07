@@ -1,36 +1,48 @@
 // src/pages/Dashboard.jsx
-import { Add as AddIcon, Bolt as BoltIcon, Build as BuildIcon, History as HistoryIcon, Logout as LogoutIcon, Notifications as NotificationsIcon, HomeRepairService as ToolsIcon } from "@mui/icons-material";
-import { Box, Button, Card, Container, Grid, Typography } from "@mui/material";
+import { Add as AddIcon, Bolt as BoltIcon, Build as BuildIcon, Restaurant as FoodIcon, History as HistoryIcon, Logout as LogoutIcon, Refresh as RefreshIcon, HomeRepairService as ToolsIcon } from "@mui/icons-material";
+import { Box, Button, Card, CircularProgress, Container, Grid, IconButton, Typography } from "@mui/material";
 import React, { useEffect } from "react";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import AppLayout from "../components/layout/AppLayout";
 import { GradientBox, GradientButton, MaterialCard, StatCard, StatusChip } from "../components/ui/StyledComponents";
 import { useAuth } from "../hooks/useAuth";
+import { fetchMaterialRequests, resetMaterialRequestDataForCreate } from "../redux/slices/materialRequestSlice";
 
 const Dashboard = () => {
     const navigate = useNavigate();
-    const { stats, requests } = useSelector((state) => state.requests);
+    const dispatch = useDispatch();
     const { user, signOut } = useAuth();
 
-    // Inside Dashboard component, add:
-    useEffect(() => {
-        console.log("PWA Debug Info:");
-        console.log("- Standalone:", window.matchMedia("(display-mode: standalone)").matches);
-        console.log("- BeforeInstallPrompt supported:", "BeforeInstallPromptEvent" in window);
-        console.log("- Service Worker:", navigator.serviceWorker?.controller);
+    // Get data from materialRequestSlice instead of requests slice
+    const { materialRequestData, materialRequestLoading, materialRequestError } = useSelector((state) => state.materialRequest);
 
-        // Manual trigger for testing
-        window.triggerPWA = () => {
-            const event = new Event("beforeinstallprompt");
-            window.dispatchEvent(event);
-        };
-    }, []);
+    // Extract the main request data from the nested structure
+    const requestData = materialRequestData || [];
+
+    // Calculate stats from material request data
+    const stats = {
+        pending: requestData.filter((item) => item.approved === "N" && item.completed === "N").length || 0,
+        approved: requestData.filter((item) => item.approved === "Y" && item.completed === "N").length || 0,
+        completed: requestData.filter((item) => item.completed === "Y").length || 0,
+        total: requestData.length || 0,
+    };
+
+    // Fetch material requests on component mount
+    useEffect(() => {
+        dispatch(resetMaterialRequestDataForCreate());
+        dispatch(fetchMaterialRequests());
+    }, [dispatch]);
+
+    const handleRefresh = () => {
+        dispatch(fetchMaterialRequests());
+    };
 
     const QuickAction = ({ icon, title, subtitle, onClick, color = "blue" }) => {
         const colorMap = {
             blue: { bg: "#dbeafe", text: "#2563eb" },
             green: { bg: "#dcfce7", text: "#16a34a" },
+            purple: { bg: "#f3e8ff", text: "#9333ea" },
         };
 
         const colors = colorMap[color] || colorMap.blue;
@@ -44,6 +56,8 @@ const Dashboard = () => {
                     "&:hover": {
                         borderColor: colors.text,
                         cursor: "pointer",
+                        transform: "translateY(-2px)",
+                        boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
                     },
                     transition: "all 0.3s ease",
                 }}
@@ -75,22 +89,50 @@ const Dashboard = () => {
 
     const RequestCard = ({ request }) => {
         const getIcon = () => {
-            switch (request.title) {
-                case "Electrical Components":
-                    return <BoltIcon sx={{ color: "#2563eb", fontSize: 20 }} />;
-                case "Construction Materials":
-                    return <BuildIcon sx={{ color: "#16a34a", fontSize: 20 }} />;
-                case "Tools & Equipment":
-                    return <ToolsIcon sx={{ color: "#9333ea", fontSize: 20 }} />;
-                default:
-                    return <BoltIcon sx={{ color: "#2563eb", fontSize: 20 }} />;
+            // Check item descriptions to determine icon
+            const hasFoodItems = request.MQ_TRAN?.some((item) => item.item_desc?.toLowerCase().includes("chicken") || item.item_desc?.toLowerCase().includes("food") || item.item_desc?.toLowerCase().includes("menu"));
+
+            const hasElectrical = request.remarks?.toLowerCase().includes("electrical") || request.cost_center?.toLowerCase().includes("electrical");
+
+            const hasConstruction = request.remarks?.toLowerCase().includes("construction") || request.cost_center?.toLowerCase().includes("construction");
+
+            const hasTools = request.remarks?.toLowerCase().includes("tool") || request.cost_center?.toLowerCase().includes("tool");
+
+            if (hasFoodItems) {
+                return <FoodIcon sx={{ color: "#dc2626", fontSize: 20 }} />;
+            } else if (hasElectrical) {
+                return <BoltIcon sx={{ color: "#2563eb", fontSize: 20 }} />;
+            } else if (hasConstruction) {
+                return <BuildIcon sx={{ color: "#16a34a", fontSize: 20 }} />;
+            } else if (hasTools) {
+                return <ToolsIcon sx={{ color: "#9333ea", fontSize: 20 }} />;
+            } else {
+                return <BoltIcon sx={{ color: "#2563eb", fontSize: 20 }} />;
             }
         };
 
+        const getStatus = () => {
+            if (request.completed === "Y") return "completed";
+            if (request.approved === "Y") return "approved";
+            if (request.posted === "Y") return "pending";
+            return "draft";
+        };
+
+        const getStatusLabel = () => {
+            if (request.completed === "Y") return "Completed";
+            if (request.approved === "Y") return "Approved";
+            if (request.posted === "Y") return "Pending";
+            return "Draft";
+        };
+
+        // Get item count and total amount
+        const itemCount = request.MQ_TRAN?.length || 0;
+        const totalAmount = request.total_amount || 0;
+
         return (
             <MaterialCard sx={{ p: 1.5, mb: 1.5 }}>
-                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <Box sx={{ display: "flex", alignItems: "center" }}>
+                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                    <Box sx={{ display: "flex", alignItems: "flex-start", flex: 1 }}>
                         <Box
                             sx={{
                                 width: 40,
@@ -101,24 +143,40 @@ const Dashboard = () => {
                                 alignItems: "center",
                                 justifyContent: "center",
                                 mr: 2,
+                                flexShrink: 0,
+                                mt: 0.5,
                             }}
                         >
                             {getIcon()}
                         </Box>
-                        <Box>
-                            <Typography variant="body1" fontWeight="600">
-                                {request.id}
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                            <Typography variant="body1" fontWeight="600" noWrap>
+                                {request.doc_no || `RQ-${request.doc_id}`}
                             </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                                {request.title}
+                            <Typography variant="caption" color="text.secondary" noWrap>
+                                {request.remarks || "Material Request"}
                             </Typography>
+                            <Box sx={{ display: "flex", gap: 2, mt: 0.5 }}>
+                                <Typography variant="caption" color="text.secondary">
+                                    {itemCount} item{itemCount !== 1 ? "s" : ""}
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary">
+                                    {totalAmount}
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary">
+                                    {request.doc_date ? new Date(request.doc_date).toLocaleDateString() : "No date"}
+                                </Typography>
+                            </Box>
                         </Box>
                     </Box>
-                    <StatusChip status={request.status} label={request.status} />
+                    <StatusChip status={getStatus()} label={getStatusLabel()} />
                 </Box>
             </MaterialCard>
         );
     };
+
+    // Get recent requests (last 5)
+    const recentRequests = requestData.slice(0, 5);
 
     return (
         <AppLayout>
@@ -142,23 +200,34 @@ const Dashboard = () => {
                                 </Typography>
                             </Box>
                             <Box sx={{ display: "flex", gap: 1 }}>
-                                <Button sx={{ minWidth: "auto", width: 40, height: 40, backgroundColor: "rgba(255,255,255,0.2)", borderRadius: "50%" }}>
-                                    <NotificationsIcon sx={{ color: "white", fontSize: 20 }} />
-                                </Button>
+                                <IconButton
+                                    onClick={handleRefresh}
+                                    disabled={materialRequestLoading}
+                                    sx={{
+                                        width: 40,
+                                        height: 40,
+                                        backgroundColor: "rgba(255,255,255,0.2)",
+                                        "&:disabled": {
+                                            opacity: 0.5,
+                                        },
+                                    }}
+                                >
+                                    {materialRequestLoading ? <CircularProgress size={20} sx={{ color: "white" }} /> : <RefreshIcon sx={{ color: "white", fontSize: 20 }} />}
+                                </IconButton>
                                 <Button
-                                    sx={{ minWidth: "auto", width: 40, height: 40, backgroundColor: "rgba(255,255,255,0.2)", borderRadius: "50%" }}
+                                    sx={{
+                                        minWidth: "auto",
+                                        width: 40,
+                                        height: 40,
+                                        backgroundColor: "rgba(255,255,255,0.2)",
+                                        borderRadius: "50%",
+                                    }}
                                     onClick={() => {
                                         signOut();
                                         navigate("/login");
                                     }}
                                 >
-                                    <LogoutIcon
-                                        sx={{
-                                            color: "white",
-                                            fontSize: 20,
-                                            filter: "drop-shadow(0.2px 0 0 currentColor)",
-                                        }}
-                                    />
+                                    <LogoutIcon sx={{ color: "white", fontSize: 20 }} />
                                 </Button>
                             </Box>
                         </Box>
@@ -210,7 +279,7 @@ const Dashboard = () => {
                                 <QuickAction icon={<AddIcon />} title="New Request" subtitle="Create material request" onClick={() => navigate("/create")} color="blue" />
                             </Grid>
                             <Grid item xs={6}>
-                                <QuickAction icon={<HistoryIcon />} title="History" subtitle="View past requests" onClick={() => navigate("/requests")} color="green" />
+                                <QuickAction icon={<HistoryIcon />} title="All Requests" subtitle="View all requests" onClick={() => navigate("/requests")} color="green" />
                             </Grid>
                         </Grid>
                     </Card>
@@ -220,16 +289,30 @@ const Dashboard = () => {
                         <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
                             <Typography variant="h6" fontWeight="600">
                                 Recent Requests
+                                {materialRequestLoading && <CircularProgress size={16} sx={{ ml: 1 }} />}
                             </Typography>
-                            <Button color="primary" size="small" sx={{ fontWeight: 600 }}>
+                            <Button color="primary" size="small" sx={{ fontWeight: 600 }} onClick={() => navigate("/requests")} disabled={materialRequestLoading}>
                                 View All
                             </Button>
                         </Box>
 
                         <Box>
-                            {requests.map((request) => (
-                                <RequestCard key={request.id} request={request} />
-                            ))}
+                            {materialRequestLoading && requestData.length === 0 ? (
+                                <Box sx={{ display: "flex", justifyContent: "center", py: 3 }}>
+                                    <CircularProgress size={30} />
+                                </Box>
+                            ) : recentRequests.length > 0 ? (
+                                recentRequests.map((request) => <RequestCard key={request.doc_id || request.doc_no} request={request} />)
+                            ) : (
+                                <Box sx={{ textAlign: "center", py: 3 }}>
+                                    <Typography variant="body2" color="text.secondary">
+                                        No material requests found
+                                    </Typography>
+                                    <Button variant="text" size="small" onClick={() => navigate("/create")} sx={{ mt: 1 }}>
+                                        Create your first request
+                                    </Button>
+                                </Box>
+                            )}
                         </Box>
                     </Card>
                 </Container>
@@ -245,6 +328,7 @@ const Dashboard = () => {
                         borderRadius: "50%",
                         minWidth: "auto",
                         zIndex: 999,
+                        boxShadow: "0 4px 20px rgba(67, 97, 238, 0.3)",
                     }}
                     onClick={() => navigate("/create")}
                 >

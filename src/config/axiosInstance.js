@@ -8,6 +8,7 @@ const PASSWORD = "rpcm@123";
 const credentials = btoa(`${USERNAME}:${PASSWORD}`);
 
 // Retrieve stored base URLs from sessionStorage
+// const storedBaseURL =  "http://localhost:8014/crudapi/cloudERP"
 const storedBaseURL = sessionStorage.getItem("baseURL") || "";
 const storedCrudURL = sessionStorage.getItem("crud_URL") || "";
 const storedCommonURL = sessionStorage.getItem("common_url") || "";
@@ -144,7 +145,8 @@ export async function setBaseURL(ClientID) {
         if (configData && configData.AppBaseURL) {
             // Update axios instances with new base URLs
             axiosInstance.defaults.baseURL = configData.AppBaseURL;
-            axiosCrudInstance.defaults.baseURL = configData.crud_URL;
+            axiosCrudInstance.defaults.baseURL = "http://localhost:8014/crudapi/cloudERP";
+            // axiosCrudInstance.defaults.baseURL = configData.crud_URL;
             axiosCommonInstance.defaults.baseURL = configData.common_url;
             axiosReportInstance.defaults.baseURL = configData.report_URL;
 
