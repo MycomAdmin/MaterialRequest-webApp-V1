@@ -1,50 +1,92 @@
 // src/pages/Login.jsx
-import { EmailRounded, LockRounded, Visibility, VisibilityOff } from "@mui/icons-material";
+import { AdminPanelSettings, EmailRounded, LockRounded, Visibility, VisibilityOff } from "@mui/icons-material";
 import { Box, Card, CardContent, Fade, InputAdornment, TextField, Typography } from "@mui/material";
 import { useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { GradientButton } from "../components/ui/StyledComponents";
-import { useAuth } from "../hooks/useAuth";
+import { loginAPI, setBaseURL } from "../config/axiosInstance";
 import { useNotification } from "../hooks/useNotification";
+import { clearError, loginFailure, loginStart, loginSuccess } from "../redux/slices/authSlice";
 
 const Login = () => {
-    const [credentials, setCredentials] = useState({ client_id: "", email: "", password: "" });
+    const [credentials, setCredentials] = useState({
+        client_id: "",
+        email: "",
+        password: "",
+    });
     const [showPassword, setShowPassword] = useState(false);
-    const [loading, setLoading] = useState(false);
-    const { signIn } = useAuth();
+    const dispatch = useDispatch();
+    const { isLoading, error } = useSelector((state) => state.auth);
     const { show } = useNotification();
     const navigate = useNavigate();
 
     const handleLogin = async (e) => {
         e.preventDefault();
-        setLoading(true);
+        dispatch(loginStart());
 
         try {
-            // Simulate API call
-            await new Promise((res) => setTimeout(res, 1000));
+            // Step 1: Set base URL using client_id
+            await setBaseURL(credentials.client_id);
 
-            signIn({
-                user: {
-                    name: "Alex",
+            // Step 2: Authenticate user
+            const loginResponse = await loginAPI(credentials);
+
+            if (loginResponse.LoginResult.Result === "SUCCESS") {
+                // Prepare user data from API response
+                const userData = {
+                    name: loginResponse.LoginResult.user_name.trim(),
                     email: credentials.email,
-                    client_id: credentials?.client_id,
-                    password: credentials?.password,
-                    role: "user",
-                },
-                token: "mock-jwt-token",
-            });
+                    user_type: loginResponse.LoginResult.user_type.trim(),
+                    client_id: credentials.client_id,
+                };
 
-            show("Welcome back! 👋", "success");
-            navigate("/");
-        } catch {
-            show(`Invalid credentials. Please try again.`, "error");
-        } finally {
-            setLoading(false);
+                const clientInfo = {
+                    client_id: loginResponse.ClientInfo.client_id,
+                    client_name: loginResponse.ClientInfo.client_name,
+                    rounding: loginResponse.ClientInfo.Rounding,
+                    business_type: loginResponse.ClientInfo.business_type,
+                };
+
+                // Step 3: Dispatch login success
+                dispatch(
+                    loginSuccess({
+                        user: userData,
+                        clientInfo: clientInfo,
+                        userAccess: loginResponse.UserAccess,
+                    })
+                );
+
+                show(`Welcome back, ${userData.name}! 👋`, "success");
+                navigate("/");
+            } else {
+                throw new Error("Authentication failed");
+            }
+        } catch (error) {
+            let errorMessage = "Invalid credentials or configuration failed";
+
+            if (error.response?.data) {
+                // Handle API response errors
+                errorMessage = error.response.data.message || errorMessage;
+            } else if (error.message) {
+                errorMessage = error.message;
+            }
+
+            dispatch(loginFailure(errorMessage));
+            show(errorMessage, "error");
         }
     };
 
     const togglePasswordVisibility = () => {
         setShowPassword(!showPassword);
+    };
+
+    const handleInputChange = (field, value) => {
+        setCredentials((prev) => ({ ...prev, [field]: value }));
+        // Clear error when user starts typing
+        if (error) {
+            dispatch(clearError());
+        }
     };
 
     return (
@@ -111,7 +153,6 @@ const Login = () => {
                     <Box sx={{ position: "relative" }}>
                         <Card
                             sx={{
-                                // p: { xs: 3, sm: 4 },
                                 padding: "0 1rem",
                                 borderRadius: "16px 16px 0 0",
                                 boxShadow: "0 -10px 30px rgba(0, 0, 0, 0.15)",
@@ -141,28 +182,42 @@ const Login = () => {
                                 <form onSubmit={handleLogin}>
                                     <TextField
                                         fullWidth
-                                        label="Email Address"
-                                        type="email"
-                                        value={credentials.email}
-                                        onChange={(e) => setCredentials({ ...credentials, email: e.target.value })}
+                                        label="Client ID"
+                                        type="text"
+                                        value={credentials.client_id}
+                                        onChange={(e) => handleInputChange("client_id", e.target.value)}
                                         required
-                                        disabled={loading}
+                                        disabled={isLoading}
+                                        error={!!error}
                                         InputProps={{
                                             startAdornment: (
                                                 <InputAdornment position="start">
-                                                    <EmailRounded color="action" />
+                                                    <AdminPanelSettings color={error ? "error" : "action"} />
                                                 </InputAdornment>
                                             ),
                                         }}
                                         sx={{
-                                            "& .MuiOutlinedInput-root": {
-                                                borderRadius: "8px",
-                                                transition: "all 0.2s",
-                                                "&:hover": {
-                                                    transform: "translateY(-1px)",
-                                                },
-                                            },
                                             marginBottom: "1rem",
+                                        }}
+                                    />
+                                    <TextField
+                                        fullWidth
+                                        label="Email Address"
+                                        type="email"
+                                        value={credentials.email}
+                                        onChange={(e) => handleInputChange("email", e.target.value)}
+                                        required
+                                        disabled={isLoading}
+                                        error={!!error}
+                                        sx={{
+                                            marginBottom: "1rem",
+                                        }}
+                                        InputProps={{
+                                            startAdornment: (
+                                                <InputAdornment position="start">
+                                                    <EmailRounded color={error ? "error" : "action"} />
+                                                </InputAdornment>
+                                            ),
                                         }}
                                     />
 
@@ -171,29 +226,22 @@ const Login = () => {
                                         label="Password"
                                         type={showPassword ? "text" : "password"}
                                         value={credentials.password}
-                                        onChange={(e) => setCredentials({ ...credentials, password: e.target.value })}
+                                        onChange={(e) => handleInputChange("password", e.target.value)}
                                         required
-                                        disabled={loading}
+                                        disabled={isLoading}
+                                        error={!!error}
+                                        helperText={error}
                                         InputProps={{
                                             startAdornment: (
                                                 <InputAdornment position="start">
-                                                    <LockRounded color="action" />
+                                                    <LockRounded color={error ? "error" : "action"} />
                                                 </InputAdornment>
                                             ),
                                             endAdornment: (
                                                 <InputAdornment position="end" sx={{ cursor: "pointer" }} onClick={togglePasswordVisibility}>
-                                                    {showPassword ? <VisibilityOff color="action" /> : <Visibility color="action" />}
+                                                    {showPassword ? <VisibilityOff color={error ? "error" : "action"} /> : <Visibility color={error ? "error" : "action"} />}
                                                 </InputAdornment>
                                             ),
-                                        }}
-                                        sx={{
-                                            "& .MuiOutlinedInput-root": {
-                                                borderRadius: "8px",
-                                                transition: "all 0.2s",
-                                                "&:hover": {
-                                                    transform: "translateY(-1px)",
-                                                },
-                                            },
                                         }}
                                     />
 
@@ -201,7 +249,7 @@ const Login = () => {
                                         type="submit"
                                         fullWidth
                                         size="large"
-                                        disabled={loading}
+                                        disabled={isLoading}
                                         sx={{
                                             mt: 4,
                                             py: "8px",
@@ -209,18 +257,12 @@ const Login = () => {
                                             fontWeight: "600",
                                             borderRadius: "8px",
                                             textTransform: "none",
-                                            boxShadow: "0 4px 12px rgba(102, 126, 234, 0.4)",
-                                            transition: "all 0.3s ease",
-                                            "&:hover": {
-                                                transform: "translateY(-2px)",
-                                                boxShadow: "0 6px 20px rgba(102, 126, 234, 0.6)",
-                                            },
-                                            "&:active": {
-                                                transform: "translateY(0)",
+                                            "&:disabled": {
+                                                opacity: 0.6,
                                             },
                                         }}
                                     >
-                                        {loading ? (
+                                        {isLoading ? (
                                             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                                                 <Box
                                                     sx={{
@@ -240,6 +282,7 @@ const Login = () => {
                                     </GradientButton>
                                 </form>
 
+                                {/* Demo credentials hint */}
                                 {/* <Box mt={4} textAlign="center">
                                     <Typography
                                         variant="caption"
@@ -252,7 +295,7 @@ const Login = () => {
                                             border: "1px solid rgba(0, 0, 0, 0.06)",
                                         }}
                                     >
-                                        💡 Demo: Use any email and password to sign in
+                                        🔐 Enter your Client ID, email and password to sign in
                                     </Typography>
                                 </Box> */}
                             </CardContent>

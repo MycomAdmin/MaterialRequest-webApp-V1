@@ -1,27 +1,37 @@
 // src/hooks/useAuth.js
-import { useSelector, useDispatch } from 'react-redux'
-import { login, logout, updateUser } from '../redux/slices/authSlice'
+import { useDispatch, useSelector } from "react-redux";
+import { clearError, loginStart, loginSuccess, logout, updateUser } from "../redux/slices/authSlice";
 
 export const useAuth = () => {
-  const dispatch = useDispatch()
-  const auth = useSelector(state => state.auth)
+    const dispatch = useDispatch();
+    const auth = useSelector((state) => state.auth);
 
-  const signIn = (userData) => {
-    dispatch(login(userData))
-  }
+    const signIn = (userData) => {
+        dispatch(loginSuccess(userData));
+    };
 
-  const signOut = () => {
-    dispatch(logout())
-  }
+    const signInWithCredentials = () => {
+        dispatch(loginStart());
+    };
 
-  const updateProfile = (userData) => {
-    dispatch(updateUser(userData))
-  }
+    const signOut = () => {
+        dispatch(logout());
+    };
 
-  return {
-    ...auth,
-    signIn,
-    signOut,
-    updateProfile
-  }
-}
+    const updateProfile = (userData) => {
+        dispatch(updateUser(userData));
+    };
+
+    const clearAuthError = () => {
+        dispatch(clearError());
+    };
+
+    return {
+        ...auth,
+        signIn,
+        signInWithCredentials,
+        signOut,
+        updateProfile,
+        clearAuthError,
+    };
+};
