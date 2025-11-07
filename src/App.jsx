@@ -2,8 +2,8 @@
 import { CssBaseline } from "@mui/material";
 import { ThemeProvider } from "@mui/material/styles";
 import { useEffect } from "react";
-import { Provider } from "react-redux";
-import { Route, BrowserRouter as Router, Routes } from "react-router-dom";
+import { Provider, useSelector } from "react-redux";
+import { Navigate, Route, BrowserRouter as Router, Routes } from "react-router-dom";
 import { store } from "./redux/store";
 
 // Pages
@@ -16,12 +16,44 @@ import Requests from "./pages/Requests";
 
 // Components
 import ErrorBoundary from "./components/common/ErrorBoundary";
+// import LoadingScreen from "./components/common/LoadingScreen";
 import Notification from "./components/common/Notification";
 import PWAInstallPrompt from "./components/common/PWAInstallPrompt";
-import CustomBottomNavigation from "./components/layout/BottomNavigation";
 
 // Theme
 import theme from "./theme";
+
+// Protected Route Component
+const ProtectedRoute = ({ children }) => {
+    const { isAuthenticated, isLoading } = useSelector((state) => state.auth);
+
+    // Show loading screen while checking authentication
+    // if (isLoading) {
+    //     return <LoadingScreen />;
+    // }
+
+    // Redirect to login if not authenticated
+    if (!isAuthenticated) {
+        return <Navigate to="/login" replace />;
+    }
+
+    return children;
+};
+
+// Public Route Component (redirect to dashboard if already authenticated)
+const PublicRoute = ({ children }) => {
+    const { isAuthenticated, isLoading } = useSelector((state) => state.auth);
+
+    // if (isLoading) {
+    //     return <LoadingScreen />;
+    // }
+
+    if (isAuthenticated) {
+        return <Navigate to="/" replace />;
+    }
+
+    return children;
+};
 
 const AppContent = () => {
     useEffect(() => {
@@ -58,12 +90,60 @@ const AppContent = () => {
         <ThemeProvider theme={theme}>
             <CssBaseline />
             <Routes>
-                <Route path="/login" element={<Login />} />
-                <Route path="/" element={<Dashboard />} />
-                <Route path="/create" element={<CreateRequest />} />
-                <Route path="/requests" element={<Requests />} />
-                <Route path="/reports" element={<Reports />} />
-                <Route path="/profile" element={<Profile />} />
+                {/* Public routes - only accessible when not logged in */}
+                <Route
+                    path="/login"
+                    element={
+                        <PublicRoute>
+                            <Login />
+                        </PublicRoute>
+                    }
+                />
+
+                {/* Protected routes - only accessible when logged in */}
+                <Route
+                    path="/"
+                    element={
+                        <ProtectedRoute>
+                            <Dashboard />
+                        </ProtectedRoute>
+                    }
+                />
+                <Route
+                    path="/create"
+                    element={
+                        <ProtectedRoute>
+                            <CreateRequest />
+                        </ProtectedRoute>
+                    }
+                />
+                <Route
+                    path="/requests"
+                    element={
+                        <ProtectedRoute>
+                            <Requests />
+                        </ProtectedRoute>
+                    }
+                />
+                <Route
+                    path="/reports"
+                    element={
+                        <ProtectedRoute>
+                            <Reports />
+                        </ProtectedRoute>
+                    }
+                />
+                <Route
+                    path="/profile"
+                    element={
+                        <ProtectedRoute>
+                            <Profile />
+                        </ProtectedRoute>
+                    }
+                />
+
+                {/* Catch all route - redirect to dashboard */}
+                <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
             <Notification />
             <PWAInstallPrompt />

@@ -141,7 +141,7 @@ export async function setBaseURL(ClientID) {
     try {
         const configData = await fetchBaseURL(ClientID);
 
-        if (configData) {
+        if (configData && configData.AppBaseURL) {
             // Update axios instances with new base URLs
             axiosInstance.defaults.baseURL = configData.AppBaseURL;
             axiosCrudInstance.defaults.baseURL = configData.crud_URL;
@@ -162,9 +162,11 @@ export async function setBaseURL(ClientID) {
                 })
             );
 
+            console.log("Configuration loaded successfully for Client ID:", ClientID);
             return configData;
         } else {
-            throw new Error("Invalid response from configuration API");
+            // More specific error message
+            throw new Error(`Configuration not found for Client ID: ${ClientID}. Please check if the Client ID is correct.`);
         }
     } catch (error) {
         sessionStorage.setItem("SettingApiStatus", "false");

@@ -60,7 +60,7 @@ const Login = () => {
                 show(`Welcome back, ${userData.name}! 👋`, "success");
                 navigate("/");
             } else {
-                throw new Error("Authentication failed");
+                throw new Error("Invalid email or password. Please check your credentials and try again.");
             }
         } catch (error) {
             let errorMessage = "Invalid credentials or configuration failed";
