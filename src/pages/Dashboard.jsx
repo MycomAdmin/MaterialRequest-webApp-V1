@@ -161,7 +161,7 @@ const Dashboard = () => {
                                     {itemCount} item{itemCount !== 1 ? "s" : ""}
                                 </Typography>
                                 <Typography variant="caption" color="text.secondary">
-                                    {totalAmount}
+                                    {totalAmount?.toFixed(2)}
                                 </Typography>
                                 <Typography variant="caption" color="text.secondary">
                                     {request.doc_date ? new Date(request.doc_date).toLocaleDateString() : "No date"}
@@ -176,7 +176,9 @@ const Dashboard = () => {
     };
 
     // Get recent requests (last 5)
-    const recentRequests = requestData.slice(0, 5);
+    const recentRequests = [...requestData]
+        .sort((a, b) => b.doc_id - a.doc_id) // sort descending by doc_id
+        .slice(0, 3); // then take top 5
 
     return (
         <AppLayout>

@@ -69,12 +69,12 @@ const Profile = () => {
                                 </ListItemIcon>
                                 <ListItemText primary="Email" secondary={user?.email} />
                             </ListItem>
-                            <ListItem disableGutters>
+                            {/* <ListItem disableGutters>
                                 <ListItemIcon>
                                     <BusinessIcon color="primary" />
                                 </ListItemIcon>
                                 <ListItemText primary="Department" secondary="Construction & Maintenance" />
-                            </ListItem>
+                            </ListItem> */}
                         </List>
                     </Card>
 

@@ -1,121 +1,215 @@
 // src/pages/CreateRequest.jsx
-import { 
-  Add as AddIcon, 
-  ArrowBack as ArrowBackIcon, 
-  Delete as DeleteIcon, 
-  Description as DescriptionIcon, 
-  ExpandMore as ExpandMoreIcon, 
-  Inventory as InventoryIcon,
-  Save as SaveIcon
+import {
+    AddCircle as AddCircleIcon,
+    Add as AddIcon,
+    ArrowBack as ArrowBackIcon,
+    Delete as DeleteIcon,
+    Description as DescriptionIcon,
+    Edit as EditIcon,
+    ExpandMore as ExpandMoreIcon,
+    Inventory as InventoryIcon,
+    Restore as RestoreIcon,
+    Save as SaveIcon,
 } from "@mui/icons-material";
-import { 
-  Box, 
-  Button, 
-  Card, 
-  CardContent, 
-  Collapse, 
-  Container, 
-  IconButton, 
-  MenuItem, 
-  TextField, 
-  Typography,
-  Snackbar,
-  Alert 
+import {
+    Box,
+    Button,
+    Card,
+    CardContent,
+    Chip,
+    Collapse,
+    Container,
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogTitle,
+    IconButton,
+    List,
+    ListItem,
+    ListItemIcon,
+    ListItemText,
+    MenuItem,
+    TextField,
+    Typography,
 } from "@mui/material";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import InsightModal from "../components/InsightModal";
-import { GradientBox, GradientButton } from "../components/ui/StyledComponents";
 import AppLayout from "../components/layout/AppLayout";
-import { 
-  updateMaterialRequestFields, 
-  updateMaterialRequestDetails, 
-  resetMaterialRequestDataForCreate,
-  fetchUpdateMaterialRequest 
-} from "../redux/slices/materialRequestSlice";
+import { GradientBox, GradientButton } from "../components/ui/StyledComponents";
+import { useNotification } from "../hooks/useNotification";
+import { fetchUpdateMaterialRequest, resetMaterialRequestDataForCreate, updateMaterialRequestDetails, updateMaterialRequestFields } from "../redux/slices/materialRequestSlice";
+import { selectCostCenters, selectLocations, selectSubLocations, fetchAllMasterData } from "../redux/slices/masterDataSlice";
 import getCurrentDateTimeUTC from "../utils/getCurrentDateTimeUTC";
 import getUserDetails from "../utils/getUserDetails";
 
 const CreateRequest = () => {
     const navigate = useNavigate();
     const dispatch = useDispatch();
-    
+    const { show } = useNotification();
+
     const [insightModalOpen, setInsightModalOpen] = useState(false);
-    const [showSuccess, setShowSuccess] = useState(false);
-    
+    const [expandedItems, setExpandedItems] = useState({});
+    const [restoreDialogOpen, setRestoreDialogOpen] = useState(false);
+
     // Get data from materialRequestSlice
-    const { 
-        materialRequestDataForCreate,
-        materialRequestCreateLoader 
-    } = useSelector((state) => state.materialRequest);
+    const { materialRequestDataForCreate, materialRequestCreateLoader } = useSelector((state) => state.materialRequest);
 
-    // Initialize form data
+    const mrHdr = materialRequestDataForCreate.master_data;
+
+    // Get master data from Redux store
+    const costCenters = useSelector(selectCostCenters);
+    const locations = useSelector(selectLocations);
+    const subLocations = useSelector(selectSubLocations);
+
+    // Check if we're in edit mode
+    const isEditMode = !!materialRequestDataForCreate.master_data.doc_id;
+
+    // Format date for input fields (convert from "2025-11-05T00:00:00Z" to "2025-11-05")
+    const formatDateForInput = (dateString) => {
+        if (!dateString) return "";
+        try {
+            const date = new Date(dateString);
+            return date.toISOString().split("T")[0];
+        } catch {
+            return "";
+        }
+    };
+
+    // Initialize form data and fetch master data when component mounts
     useEffect(() => {
-        dispatch(resetMaterialRequestDataForCreate());
-    }, [dispatch]);
+        if (!isEditMode) {
+            dispatch(resetMaterialRequestDataForCreate());
+        }
+        // Fetch all master data when component mounts
+        dispatch(fetchAllMasterData());
+    }, [dispatch, isEditMode]);
 
-    // Set default dates
+    // Set default dates for new requests
     const today = new Date().toISOString().split("T")[0];
     const requestedDate = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
 
     // Handle form field changes
     const handleFieldChange = (field, value) => {
-        dispatch(updateMaterialRequestFields({ [field]: value }));
+        // If location is changed, reset sub-location
+        if (field === "loc_no") {
+            dispatch(updateMaterialRequestFields({ 
+                [field]: value,
+                sub_loc_code: "" // Reset sub-location when location changes
+            }));
+        } else {
+            dispatch(updateMaterialRequestFields({ [field]: value }));
+        }
     };
 
-    // Handle adding items from InsightModal
-    const handleAddItem = (name, code) => {
-        const newItem = {
-            line_number: (materialRequestDataForCreate.details[0].data.length + 1),
-            item_code: code,
-            item_desc: name,
-            pack_id: "",
-            item_type: "MATERIAL",
-            pack_qty: 1,
-            unit_price: 0,
-            total_amount: 0,
-            tax_amount: 0,
-            net_amount: 0,
-            _upd: "C",
-            cost_center: materialRequestDataForCreate.master_data.cost_center || "001",
-            created_date: getCurrentDateTimeUTC(),
-            created_user: getUserDetails()?.user_name || "",
-            tran_id: "",
-            doc_id: "",
-            doc_no: "",
-            doc_type: "MQ",
-            line_type: "Detail",
-            updTimeStamp: getCurrentDateTimeUTC(),
-            updated_date: getCurrentDateTimeUTC(),
-            updated_user: getUserDetails()?.user_name || "",
-            client_id: materialRequestDataForCreate.master_data.client_id
-        };
+    // Switch to create mode
+    const handleSwitchToCreateMode = () => {
+        dispatch(resetMaterialRequestDataForCreate());
+    };
 
-        const updatedItems = [...materialRequestDataForCreate.details[0].data, newItem];
+    // Get filtered sub-locations based on selected location
+    const getFilteredSubLocations = () => {
+        const selectedLocation = materialRequestDataForCreate.master_data.loc_no;
+        if (!selectedLocation) return subLocations;
+        
+        return subLocations.filter(subLocation => 
+            subLocation.loc_code === selectedLocation || 
+            subLocation.master_location_id === selectedLocation
+        );
+    };
+
+    // Get the next available line number - FIXED LOGIC (like admin app)
+    const getNextLineNumber = () => {
+        const rows = materialRequestDataForCreate.details[0].data;
+        if (!rows || rows.length === 0) return 1;
+
+        // Find the maximum line number from existing items (like admin app logic)
+        const lastLineNumber = rows.length > 0 ? Math.max(...rows.map((row) => row.line_number || 0)) : 0;
+
+        return parseInt(lastLineNumber) + 1;
+    };
+
+    // Handle adding multiple items
+    const handleAddItems = (itemsArray) => {
+        console.log(itemsArray, "itma");
+        let nextLineNumber = getNextLineNumber();
+
+        const newItems = itemsArray.map((itemData, index) => {
+            const itemName = itemData.name || itemData.item_desc || "Unknown Item";
+            const itemCode = itemData.code || itemData.item_code || "UNKNOWN";
+            const unitPrice = itemData.price1 || itemData?.price || 0;
+
+            return {
+                line_number: nextLineNumber + index, // Sequential line numbers starting from next available
+                item_code: itemCode,
+                item_desc: itemName,
+                pack_id: "",
+                item_type: "MATERIAL",
+                pack_qty: 1,
+                unit_price: unitPrice,
+                total_amount: unitPrice,
+                tax_amount: 0,
+                net_amount: unitPrice,
+                _upd: "C", // Create operation for new items
+                cost_center: materialRequestDataForCreate.master_data.cost_center || "001",
+                created_date: getCurrentDateTimeUTC(),
+                created_user: getUserDetails()?.user_name || "",
+                tran_id: "",
+                doc_id: materialRequestDataForCreate.master_data.doc_id || "",
+                doc_no: materialRequestDataForCreate.master_data.doc_no || "",
+                doc_type: "MQ",
+                line_type: "Detail",
+                updTimeStamp: getCurrentDateTimeUTC(),
+                updated_date: getCurrentDateTimeUTC(),
+                updated_user: getUserDetails()?.user_name || "",
+                client_id: materialRequestDataForCreate.master_data.client_id,
+            };
+        });
+
+        const updatedItems = [...materialRequestDataForCreate.details[0].data, ...newItems];
         dispatch(updateMaterialRequestDetails(updatedItems));
     };
 
-    // Handle removing items
+    // Handle removing items (NO LINE NUMBER RECALCULATION)
     const handleRemoveItem = (index) => {
-        const updatedItems = materialRequestDataForCreate.details[0].data.filter((_, i) => i !== index);
-        // Update line numbers
-        const renumberedItems = updatedItems.map((item, idx) => ({
-            ...item,
-            line_number: idx + 1
-        }));
-        dispatch(updateMaterialRequestDetails(renumberedItems));
+        const itemToRemove = materialRequestDataForCreate.details[0].data[index];
+        let updatedItems;
+
+        if (itemToRemove._upd === "C" && !itemToRemove.tran_id) {
+            // If it's a newly created item (not saved yet), just remove it
+            updatedItems = materialRequestDataForCreate.details[0].data.filter((_, i) => i !== index);
+        } else {
+            // If it's an existing item, mark it for deletion
+            updatedItems = materialRequestDataForCreate.details[0].data.map((item, i) => (i === index ? { ...item, _upd: "D" } : item));
+        }
+
+        dispatch(updateMaterialRequestDetails(updatedItems));
+
+        // Remove from expanded items state
+        const newExpandedItems = { ...expandedItems };
+        delete newExpandedItems[index];
+        setExpandedItems(newExpandedItems);
+    };
+
+    // Handle restoring deleted items (NO LINE NUMBER RECALCULATION)
+    const handleRestoreItem = (index) => {
+        const updatedItems = materialRequestDataForCreate.details[0].data.map((item, i) => (i === index ? { ...item, _upd: "U" } : item));
+        dispatch(updateMaterialRequestDetails(updatedItems));
     };
 
     // Handle quantity changes
     const handleQuantityChange = (index, quantity) => {
         const updatedItems = [...materialRequestDataForCreate.details[0].data];
         const packQty = parseInt(quantity) || 1;
+        const currentItem = updatedItems[index];
+
         updatedItems[index] = {
-            ...updatedItems[index],
+            ...currentItem,
             pack_qty: packQty,
-            total_amount: (updatedItems[index].unit_price || 0) * packQty,
-            net_amount: (updatedItems[index].unit_price || 0) * packQty
+            total_amount: (currentItem.unit_price || 0) * packQty,
+            net_amount: (currentItem.unit_price || 0) * packQty,
+            _upd: currentItem._upd === "C" ? "C" : "U", // Keep as Create or mark as Update
         };
         dispatch(updateMaterialRequestDetails(updatedItems));
     };
@@ -124,57 +218,107 @@ const CreateRequest = () => {
     const handleUnitPriceChange = (index, unitPrice) => {
         const updatedItems = [...materialRequestDataForCreate.details[0].data];
         const price = parseFloat(unitPrice) || 0;
+        const currentItem = updatedItems[index];
+
         updatedItems[index] = {
-            ...updatedItems[index],
+            ...currentItem,
             unit_price: price,
-            total_amount: price * (updatedItems[index].pack_qty || 1),
-            net_amount: price * (updatedItems[index].pack_qty || 1)
+            total_amount: price * (currentItem.pack_qty || 1),
+            net_amount: price * (currentItem.pack_qty || 1),
+            _upd: currentItem._upd === "C" ? "C" : "U", // Keep as Create or mark as Update
         };
         dispatch(updateMaterialRequestDetails(updatedItems));
     };
 
+    // Toggle item expansion (local state only)
+    const toggleItemExpand = (index) => {
+        setExpandedItems((prev) => ({
+            ...prev,
+            [index]: !prev[index],
+        }));
+    };
+
+    // Check if item is expanded
+    const isItemExpanded = (index) => {
+        return !!expandedItems[index];
+    };
+
     // Calculate total amount
     const calculateTotalAmount = () => {
-        return materialRequestDataForCreate.details[0].data.reduce((total, item) => total + (item.total_amount || 0), 0);
+        return materialRequestDataForCreate.details[0].data
+            .filter((item) => item._upd !== "D") // Exclude deleted items from total
+            .reduce((total, item) => total + (item.total_amount || 0), 0);
+    };
+
+    // Get deleted items for restoration
+    const getDeletedItems = () => {
+        return materialRequestDataForCreate.details[0].data
+            .filter((item) => item._upd === "D")
+            .map((item, index) => ({
+                ...item,
+                originalIndex: materialRequestDataForCreate.details[0].data.indexOf(item),
+            }));
+    };
+
+    // Prepare data for API submission
+    const prepareDataForSubmission = (isDraft = false) => {
+        const itemsForApi = materialRequestDataForCreate.details[0].data.map((item) => {
+            // Create a clean copy without any local-only fields
+            const { expanded, originalIndex, ...cleanItem } = item;
+            return cleanItem;
+        });
+
+        const baseData = {
+            ...materialRequestDataForCreate,
+            master_data: {
+                ...materialRequestDataForCreate.master_data,
+                doc_date: mrHdr?.doc_date || today,
+                doc_req_date: mrHdr?.doc_req_date || requestedDate, 
+                total_amount: calculateTotalAmount(),
+                total_net_amount: calculateTotalAmount(),
+                total_tax_amount: 0,
+                posted: isDraft ? "N" : "Y",
+                updated_date: getCurrentDateTimeUTC(),
+                updated_user: getUserDetails()?.user_name || "",
+                updTimeStamp: getCurrentDateTimeUTC(),
+            },
+            details: [
+                {
+                    table: "MQ_TRAN",
+                    data: itemsForApi,
+                },
+            ],
+        };
+
+        // For new requests, ensure operation is "create"
+        if (!isEditMode) {
+            baseData.operation = "create";
+            baseData.master_data.created_date = getCurrentDateTimeUTC();
+            baseData.master_data.created_user = getUserDetails()?.user_name || "";
+        }
+
+        return baseData;
     };
 
     // Handle form submission
     const handleSubmit = async (isDraft = false) => {
         try {
-            // Update totals before submission
-            const totalAmount = calculateTotalAmount();
-            const updatedData = {
-                ...materialRequestDataForCreate,
-                master_data: {
-                    ...materialRequestDataForCreate.master_data,
-                    total_amount: totalAmount,
-                    total_net_amount: totalAmount,
-                    total_tax_amount: 0,
-                    posted: isDraft ? "N" : "Y"
-                }
-            };
-
-            await dispatch(fetchUpdateMaterialRequest(updatedData)).unwrap();
-            
-            setShowSuccess(true);
-            setTimeout(() => {
+            const submissionData = prepareDataForSubmission(isDraft);
+            const response = await dispatch(fetchUpdateMaterialRequest(submissionData)).unwrap();
+            if (response?.success) {
+                dispatch(resetMaterialRequestDataForCreate());
+                show(`${isEditMode ? "Material request updated successfully!" : "Material request submitted successfully!"}`, "success");
                 navigate("/requests");
-            }, 1500);
+            }
         } catch (error) {
             console.error("Failed to submit request:", error);
         }
     };
 
-    // Toggle item expansion
-    const toggleItemExpand = (index) => {
-        const updatedItems = materialRequestDataForCreate.details[0].data.map((item, i) => ({
-            ...item,
-            expanded: i === index ? !item.expanded : false
-        }));
-        dispatch(updateMaterialRequestDetails(updatedItems));
-    };
-
     const items = materialRequestDataForCreate.details[0].data;
+    const deletedItems = getDeletedItems();
+    const activeItems = items.filter((item) => item._upd !== "D");
+    const filteredSubLocations = getFilteredSubLocations();
 
     return (
         <AppLayout>
@@ -188,21 +332,43 @@ const CreateRequest = () => {
                 {/* Header */}
                 <GradientBox sx={{ pt: 3, pb: 3.5, borderRadius: "0 0 24px 24px" }}>
                     <Container maxWidth="sm">
-                        <Box sx={{ display: "flex", gap: 2, alignItems: "center", mb: 2 }}>
-                            <IconButton 
-                                sx={{ 
-                                    color: "white", 
-                                    backgroundColor: "rgba(255,255,255,0.2)", 
-                                    borderRadius: "50%" 
-                                }} 
-                                onClick={() => navigate("/requests")}
-                            >
-                                <ArrowBackIcon />
-                            </IconButton>
-                            <Typography variant="h6" fontWeight="bold">
-                                New Material Request
-                            </Typography>
-                            <Box width={40} /> {/* Spacer for alignment */}
+                        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+                            <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                                <IconButton
+                                    sx={{
+                                        color: "white",
+                                        backgroundColor: "rgba(255,255,255,0.2)",
+                                        borderRadius: "50%",
+                                    }}
+                                    onClick={() => navigate("/requests")}
+                                >
+                                    <ArrowBackIcon />
+                                </IconButton>
+                                <Box>
+                                    <Typography variant="h6" fontWeight="bold">
+                                        {isEditMode ? "Edit Material Request" : "New Material Request"}
+                                        {isEditMode && (
+                                            <Typography variant="caption" sx={{ ml: 1, opacity: 0.8 }}>
+                                                ({materialRequestDataForCreate.master_data.doc_no})
+                                            </Typography>
+                                        )}
+                                    </Typography>
+                                    {isEditMode && (
+                                        <Button
+                                            size="small"
+                                            startIcon={<AddCircleIcon />}
+                                            onClick={handleSwitchToCreateMode}
+                                            sx={{
+                                                color: "white",
+                                                mt: 0.5,
+                                                fontSize: "0.75rem",
+                                            }}
+                                        >
+                                            Switch to New Request
+                                        </Button>
+                                    )}
+                                </Box>
+                            </Box>
                         </Box>
                     </Container>
                 </GradientBox>
@@ -211,71 +377,83 @@ const CreateRequest = () => {
                     {/* Request Details */}
                     <Card sx={{ padding: "1rem", mb: 3 }}>
                         <Typography variant="h6" fontWeight="600" sx={{ display: "flex", alignItems: "center", mb: 1.5 }}>
-                            <DescriptionIcon sx={{ color: "#4361ee", mr: 1 }} />
-                            Request Details
+                            {isEditMode ? <EditIcon sx={{ color: "#4361ee", mr: 1 }} /> : <DescriptionIcon sx={{ color: "#4361ee", mr: 1 }} />}
+                            Request Details {isEditMode && "(Editing)"}
                         </Typography>
 
                         <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5, padding: "0rem 0.2rem" }}>
-                            <TextField 
-                                label="Date" 
-                                type="date" 
-                                value={materialRequestDataForCreate.master_data.doc_date || today}
-                                onChange={(e) => handleFieldChange('doc_date', e.target.value)}
-                                fullWidth 
+                            {isEditMode && <TextField label="Document Number" value={materialRequestDataForCreate.master_data.doc_no || ""} InputProps={{ readOnly: true }} fullWidth />}
+
+                            <TextField
+                                label="Date"
+                                type="date"
+                                value={formatDateForInput(materialRequestDataForCreate.master_data.doc_date) || today}
+                                onChange={(e) => handleFieldChange("doc_date", e.target.value)}
+                                fullWidth
                             />
 
                             <TextField 
                                 label="Location" 
                                 select 
-                                value={materialRequestDataForCreate.master_data.loc_no || "001"}
-                                onChange={(e) => handleFieldChange('loc_no', e.target.value)}
+                                value={materialRequestDataForCreate.master_data.loc_no || ""} 
+                                onChange={(e) => handleFieldChange("loc_no", e.target.value)} 
                                 fullWidth
+                                placeholder="Select location"
                             >
-                                <MenuItem value="001">Main Warehouse</MenuItem>
-                                <MenuItem value="002">Construction Site A</MenuItem>
-                                <MenuItem value="003">Construction Site B</MenuItem>
-                                <MenuItem value="004">Office Building</MenuItem>
+                                <MenuItem value="">Select Location</MenuItem>
+                                {locations.map((location) => (
+                                    <MenuItem key={location.loc_code} value={location.loc_code}>
+                                        {location.loc_name || location.loc_code}
+                                    </MenuItem>
+                                ))}
                             </TextField>
 
                             <TextField 
                                 label="Sub-location" 
                                 select 
-                                value={materialRequestDataForCreate.master_data.sub_loc_code || "001"}
-                                onChange={(e) => handleFieldChange('sub_loc_code', e.target.value)}
+                                value={materialRequestDataForCreate.master_data.sub_loc_code || ""} 
+                                onChange={(e) => handleFieldChange("sub_loc_code", e.target.value)} 
                                 fullWidth
+                                disabled={!materialRequestDataForCreate.master_data.loc_no}
+                                placeholder="Choose location to select sub location"
                             >
-                                <MenuItem value="001">Storage Area 1</MenuItem>
-                                <MenuItem value="002">Storage Area 2</MenuItem>
-                                <MenuItem value="003">Tool Room</MenuItem>
-                                <MenuItem value="004">Electrical Room</MenuItem>
+                                <MenuItem value="">Select Sub-location</MenuItem>
+                                {filteredSubLocations.map((subLocation) => (
+                                    <MenuItem key={subLocation.sub_loc_code} value={subLocation.sub_loc_code}>
+                                        {subLocation.sub_loc_name || subLocation.sub_loc_code}
+                                    </MenuItem>
+                                ))}
                             </TextField>
 
-                            <TextField 
+                            {/* <TextField 
                                 label="Cost Center" 
                                 select 
-                                value={materialRequestDataForCreate.master_data.cost_center || "001"}
-                                onChange={(e) => handleFieldChange('cost_center', e.target.value)}
+                                value={materialRequestDataForCreate.master_data.cost_center || ""} 
+                                onChange={(e) => handleFieldChange("cost_center", e.target.value)} 
                                 fullWidth
                             >
-                                <MenuItem value="001">Main Cost Center</MenuItem>
-                                <MenuItem value="002">Construction Cost Center</MenuItem>
-                                <MenuItem value="003">Office Cost Center</MenuItem>
-                            </TextField>
+                                <MenuItem value="">Select Cost Center</MenuItem>
+                                {costCenters.map((costCenter) => (
+                                    <MenuItem key={costCenter.cost_center_code} value={costCenter.cost_center_code}>
+                                        {costCenter.cost_center_name || costCenter.cost_center_code}
+                                    </MenuItem>
+                                ))}
+                            </TextField> */}
 
-                            <TextField 
-                                label="Requested Date" 
-                                type="date" 
-                                value={materialRequestDataForCreate.master_data.doc_req_date || requestedDate}
-                                onChange={(e) => handleFieldChange('doc_req_date', e.target.value)}
-                                fullWidth 
+                            <TextField
+                                label="Requested Date"
+                                type="date"
+                                value={formatDateForInput(materialRequestDataForCreate.master_data.doc_req_date) || requestedDate}
+                                onChange={(e) => handleFieldChange("doc_req_date", e.target.value)}
+                                fullWidth
                             />
 
-                            <TextField 
-                                label="Remarks" 
-                                multiline 
-                                rows={2}
+                            <TextField
+                                label="Remarks"
+                                multiline
+                                rows={1}
                                 value={materialRequestDataForCreate.master_data.remarks || ""}
-                                onChange={(e) => handleFieldChange('remarks', e.target.value)}
+                                onChange={(e) => handleFieldChange("remarks", e.target.value)}
                                 placeholder="Enter any additional remarks..."
                                 fullWidth
                             />
@@ -284,17 +462,70 @@ const CreateRequest = () => {
 
                     {/* Items Section */}
                     <Card sx={{ p: 2, mb: 2, borderRadius: "12px" }}>
-                        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2, flexWrap: "wrap", gap: "0.7rem" }}>
-                            <Typography variant="subtitle1" fontWeight="600" sx={{ display: "flex", alignItems: "center", fontSize: "0.9rem" }}>
-                                <InventoryIcon sx={{ color: "#4361ee", mr: 1, fontSize: 18 }} />
-                                Request Items ({items.length})
-                            </Typography>
+                        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2, flexWrap: "wrap", gap: "0.7rem", width: "100%" }}>
+                            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+                                <Typography variant="subtitle1" fontWeight="600" sx={{ display: "flex", alignItems: "center", fontSize: "0.9rem" }}>
+                                    <InventoryIcon sx={{ color: "#4361ee", mr: 1, fontSize: 18 }} />
+                                    Request Items ({activeItems.length})
+                                </Typography>
+                                {isEditMode && deletedItems.length > 0 && (
+                                    <Button
+                                        variant="outlined"
+                                        startIcon={<RestoreIcon sx={{ fontSize: 16 }} />}
+                                        onClick={() => setRestoreDialogOpen(true)}
+                                        sx={{
+                                            backgroundColor: "#f0fdf4",
+                                            color: "#16a34a",
+                                            borderColor: "#bbf7d0",
+                                            fontWeight: 600,
+                                            fontSize: "0.75rem",
+                                            py: 0.75,
+                                            px: 1.75,
+                                            borderRadius: "8px",
+                                            textTransform: "none",
+                                            minWidth: "auto",
+                                            "&:hover": {
+                                                backgroundColor: "#dcfce7",
+                                                borderColor: "#4ade80",
+                                                transform: "translateY(-1px)",
+                                                boxShadow: "0 4px 10px rgba(22, 163, 74, 0.15)",
+                                            },
+                                            transition: "all 0.2s ease",
+                                        }}
+                                    >
+                                        Restore
+                                        {deletedItems.length > 0 && (
+                                            <Typography variant="caption" color="error" sx={{ ml: "0.2rem" }}>
+                                                ({deletedItems.length})
+                                            </Typography>
+                                        )}
+                                    </Button>
+                                )}
+                            </Box>
 
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                <Typography variant="body2" fontWeight="600" color="primary">
+                            <Box
+                                sx={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "space-between",
+                                    flexWrap: "wrap",
+                                    gap: 1.5,
+                                    width: "100%",
+                                }}
+                            >
+                                <Typography variant="body2" fontWeight="600" color="primary" sx={{ fontSize: "0.9rem", whiteSpace: "nowrap" }}>
                                     Total: ${calculateTotalAmount().toFixed(2)}
                                 </Typography>
-                                <Box sx={{ display: "flex", gap: 0.5 }}>
+
+                                <Box
+                                    sx={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        flexWrap: "wrap",
+                                        gap: 1,
+                                        marginLeft: "auto",
+                                    }}
+                                >
                                     <Button
                                         variant="outlined"
                                         startIcon={<InventoryIcon sx={{ fontSize: 16 }} />}
@@ -305,13 +536,19 @@ const CreateRequest = () => {
                                             borderColor: "#e9d5ff",
                                             fontWeight: 600,
                                             fontSize: "0.75rem",
-                                            py: 0.5,
-                                            minWidth: "auto",
-                                            px: 1.5,
+                                            py: 0.75,
+                                            px: 1.75,
+                                            borderRadius: "8px",
+                                            textTransform: "none",
+                                            "&:hover": {
+                                                backgroundColor: "#ede9fe",
+                                                borderColor: "#c084fc",
+                                            },
                                         }}
                                     >
                                         Insight 360
                                     </Button>
+
                                     <Button
                                         color="primary"
                                         startIcon={<AddIcon sx={{ fontSize: 16 }} />}
@@ -319,9 +556,11 @@ const CreateRequest = () => {
                                         sx={{
                                             fontWeight: 600,
                                             fontSize: "0.75rem",
-                                            py: 0.5,
+                                            py: 0.75,
+                                            px: 1.75,
+                                            borderRadius: "8px",
+                                            textTransform: "none",
                                             minWidth: "auto",
-                                            px: 1.5,
                                         }}
                                     >
                                         Add Items
@@ -332,8 +571,16 @@ const CreateRequest = () => {
 
                         {/* Items List */}
                         <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-                            {items.map((item, index) => (
-                                <Card key={index} variant="outlined" sx={{ borderRadius: "12px" }}>
+                            {activeItems.map((item, index) => (
+                                <Card
+                                    key={index}
+                                    variant="outlined"
+                                    sx={{
+                                        borderRadius: "12px",
+                                        borderColor: item._upd === "U" ? "#f59e0b" : "#e2e8f0",
+                                        backgroundColor: item._upd === "U" ? "#fffbeb" : "white",
+                                    }}
+                                >
                                     <CardContent sx={{ p: "12px !important" }}>
                                         {/* Item Header */}
                                         <Box
@@ -349,7 +596,7 @@ const CreateRequest = () => {
                                                 sx={{
                                                     width: 28,
                                                     height: 28,
-                                                    backgroundColor: "#dbeafe",
+                                                    backgroundColor: item._upd === "U" ? "#fef3c7" : "#dbeafe",
                                                     borderRadius: "6px",
                                                     display: "flex",
                                                     alignItems: "center",
@@ -357,7 +604,7 @@ const CreateRequest = () => {
                                                     flexShrink: 0,
                                                 }}
                                             >
-                                                <InventoryIcon sx={{ color: "#2563eb", fontSize: 16 }} />
+                                                <InventoryIcon sx={{ color: item._upd === "U" ? "#d97706" : "#2563eb", fontSize: 16 }} />
                                             </Box>
 
                                             <Box
@@ -373,9 +620,11 @@ const CreateRequest = () => {
                                                 <Box sx={{ minWidth: 0 }}>
                                                     <Typography variant="body2" fontWeight="600" sx={{ fontSize: "0.8rem", lineHeight: 1.2 }}>
                                                         {item.item_desc}
+                                                        {item._upd === "U" && <Chip label="Modified" size="small" color="warning" sx={{ ml: 0.5, height: 20, fontSize: "0.6rem", display: !isEditMode && "none" }} />}
+                                                        {item._upd === "C" && <Chip label="New" size="small" color="success" sx={{ ml: 0.5, height: 20, fontSize: "0.6rem", display: !isEditMode && "none" }} />}
                                                     </Typography>
                                                     <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.8rem" }}>
-                                                        {item.item_code}
+                                                        {item.item_code} • Line #{item.line_number}
                                                     </Typography>
                                                 </Box>
 
@@ -411,7 +660,7 @@ const CreateRequest = () => {
                                                 <ExpandMoreIcon
                                                     sx={{
                                                         fontSize: 16,
-                                                        transform: item.expanded ? "rotate(180deg)" : "none",
+                                                        transform: isItemExpanded(index) ? "rotate(180deg)" : "none",
                                                         transition: "transform 0.2s ease",
                                                     }}
                                                 />
@@ -419,7 +668,7 @@ const CreateRequest = () => {
                                         </Box>
 
                                         {/* Expanded Content */}
-                                        <Collapse in={item.expanded}>
+                                        <Collapse in={isItemExpanded(index)}>
                                             <Box sx={{ mt: 1.5, display: "flex", flexDirection: "column", gap: 1.5 }}>
                                                 <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1 }}>
                                                     <TextField
@@ -433,6 +682,19 @@ const CreateRequest = () => {
                                                         InputLabelProps={{ sx: { fontSize: "0.8rem" } }}
                                                     />
                                                     <TextField
+                                                        label="Line Number"
+                                                        value={item.line_number}
+                                                        size="small"
+                                                        InputProps={{
+                                                            readOnly: true,
+                                                            sx: { fontSize: "0.8rem", height: "32px" },
+                                                        }}
+                                                        InputLabelProps={{ sx: { fontSize: "0.8rem" } }}
+                                                    />
+                                                </Box>
+
+                                                <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1 }}>
+                                                    <TextField
                                                         label="Quantity"
                                                         type="number"
                                                         value={item.pack_qty}
@@ -444,9 +706,6 @@ const CreateRequest = () => {
                                                         }}
                                                         InputLabelProps={{ sx: { fontSize: "0.8rem" } }}
                                                     />
-                                                </Box>
-
-                                                <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1 }}>
                                                     <TextField
                                                         label="Unit Price"
                                                         type="number"
@@ -460,25 +719,15 @@ const CreateRequest = () => {
                                                         }}
                                                         InputLabelProps={{ sx: { fontSize: "0.8rem" } }}
                                                     />
-                                                    <TextField
-                                                        label="Total Amount"
-                                                        value={(item.unit_price * item.pack_qty).toFixed(2)}
-                                                        size="small"
-                                                        InputProps={{
-                                                            readOnly: true,
-                                                            sx: { fontSize: "0.8rem", height: "32px" },
-                                                        }}
-                                                        InputLabelProps={{ sx: { fontSize: "0.8rem" } }}
-                                                    />
                                                 </Box>
 
                                                 <TextField
-                                                    label="Item Type"
-                                                    value={item.item_type}
+                                                    label="Total Amount"
+                                                    value={(item.unit_price * item.pack_qty).toFixed(2)}
                                                     size="small"
                                                     InputProps={{
                                                         readOnly: true,
-                                                        sx: { fontSize: "0.8rem" },
+                                                        sx: { fontSize: "0.8rem", height: "32px" },
                                                     }}
                                                     InputLabelProps={{ sx: { fontSize: "0.8rem" } }}
                                                 />
@@ -488,17 +737,13 @@ const CreateRequest = () => {
                                 </Card>
                             ))}
 
-                            {items.length === 0 && (
-                                <Card sx={{ p: 3, textAlign: 'center', border: '2px dashed #e2e8f0' }}>
-                                    <InventoryIcon sx={{ color: '#cbd5e1', fontSize: 40, mb: 1 }} />
+                            {activeItems.length === 0 && (
+                                <Card sx={{ p: 3, textAlign: "center", border: "2px dashed #e2e8f0" }}>
+                                    <InventoryIcon sx={{ color: "#cbd5e1", fontSize: 40, mb: 1 }} />
                                     <Typography variant="body2" color="text.secondary">
                                         No items added yet
                                     </Typography>
-                                    <Button 
-                                        variant="text" 
-                                        onClick={() => setInsightModalOpen(true)}
-                                        sx={{ mt: 1 }}
-                                    >
+                                    <Button variant="text" onClick={() => setInsightModalOpen(true)} sx={{ mt: 1 }}>
                                         Add your first item
                                     </Button>
                                 </Card>
@@ -525,33 +770,63 @@ const CreateRequest = () => {
                                 },
                             }}
                         >
-                            {materialRequestCreateLoader ? 'Saving...' : 'Save Draft'}
+                            {materialRequestCreateLoader ? "Saving..." : "Save Draft"}
                         </Button>
-                        <GradientButton
-                            fullWidth
-                            disabled={materialRequestCreateLoader || items.length === 0}
-                            onClick={() => handleSubmit(false)}
-                            sx={{ py: 1.5 }}
-                        >
-                            {materialRequestCreateLoader ? 'Submitting...' : 'Submit Request'}
+                        <GradientButton fullWidth disabled={materialRequestCreateLoader || activeItems.length === 0} onClick={() => handleSubmit(false)} sx={{ py: 1.5 }}>
+                            {materialRequestCreateLoader ? "Submitting..." : isEditMode ? "Update Request" : "Submit Request"}
                         </GradientButton>
                     </Box>
                 </Container>
 
                 {/* Insight Modal */}
-                <InsightModal open={insightModalOpen} onClose={() => setInsightModalOpen(false)} onSelectItem={handleAddItem} />
+                <InsightModal open={insightModalOpen} onClose={() => setInsightModalOpen(false)} onSelectItems={handleAddItems} />
 
-                {/* Success Snackbar */}
-                <Snackbar 
-                    open={showSuccess} 
-                    autoHideDuration={3000} 
-                    onClose={() => setShowSuccess(false)}
-                    anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-                >
-                    <Alert severity="success" onClose={() => setShowSuccess(false)}>
-                        Material request submitted successfully!
-                    </Alert>
-                </Snackbar>
+                {/* Restore Deleted Items Dialog */}
+                <Dialog open={restoreDialogOpen} onClose={() => setRestoreDialogOpen(false)} maxWidth="sm" fullWidth>
+                    <DialogTitle>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                            <RestoreIcon color="primary" />
+                            Restore Deleted Items
+                        </Box>
+                    </DialogTitle>
+                    <DialogContent>
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                            Select items to restore from the deleted list:
+                        </Typography>
+                        <List>
+                            {deletedItems.map((item, index) => (
+                                <ListItem
+                                    key={index}
+                                    secondaryAction={
+                                        <IconButton edge="end" onClick={() => handleRestoreItem(item.originalIndex)} color="primary">
+                                            <RestoreIcon />
+                                        </IconButton>
+                                    }
+                                >
+                                    <ListItemIcon>
+                                        <InventoryIcon color="action" />
+                                    </ListItemIcon>
+                                    <ListItemText
+                                        primary={item.item_desc}
+                                        secondary={
+                                            <Box>
+                                                <Typography variant="caption" display="block">
+                                                    {item.item_code} • Line #{item.line_number}
+                                                </Typography>
+                                                <Typography variant="caption" color="text.secondary">
+                                                    Qty: {item.pack_qty} • ${item.unit_price}
+                                                </Typography>
+                                            </Box>
+                                        }
+                                    />
+                                </ListItem>
+                            ))}
+                        </List>
+                    </DialogContent>
+                    <DialogActions>
+                        <Button onClick={() => setRestoreDialogOpen(false)}>Close</Button>
+                    </DialogActions>
+                </Dialog>
             </Box>
         </AppLayout>
     );

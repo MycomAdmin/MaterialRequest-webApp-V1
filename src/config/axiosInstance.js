@@ -145,8 +145,8 @@ export async function setBaseURL(ClientID) {
         if (configData && configData.AppBaseURL) {
             // Update axios instances with new base URLs
             axiosInstance.defaults.baseURL = configData.AppBaseURL;
-            axiosCrudInstance.defaults.baseURL = "http://localhost:8014/crudapi/cloudERP";
-            // axiosCrudInstance.defaults.baseURL = configData.crud_URL;
+            // axiosCrudInstance.defaults.baseURL = "http://localhost:8014/crudapi/cloudERP";
+            axiosCrudInstance.defaults.baseURL = configData.crud_URL;
             axiosCommonInstance.defaults.baseURL = configData.common_url;
             axiosReportInstance.defaults.baseURL = configData.report_URL;
 
