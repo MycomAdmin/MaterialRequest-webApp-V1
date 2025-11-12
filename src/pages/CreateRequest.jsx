@@ -39,8 +39,8 @@ import InsightModal from "../components/InsightModal";
 import AppLayout from "../components/layout/AppLayout";
 import { GradientBox, GradientButton } from "../components/ui/StyledComponents";
 import { useNotification } from "../hooks/useNotification";
+import { fetchAllMasterData, selectLocations, selectSubLocations } from "../redux/slices/masterDataSlice";
 import { fetchUpdateMaterialRequest, resetMaterialRequestDataForCreate, updateMaterialRequestDetails, updateMaterialRequestFields } from "../redux/slices/materialRequestSlice";
-import { selectCostCenters, selectLocations, selectSubLocations, fetchAllMasterData } from "../redux/slices/masterDataSlice";
 import getCurrentDateTimeUTC from "../utils/getCurrentDateTimeUTC";
 import getUserDetails from "../utils/getUserDetails";
 
@@ -59,7 +59,6 @@ const CreateRequest = () => {
     const mrHdr = materialRequestDataForCreate.master_data;
 
     // Get master data from Redux store
-    const costCenters = useSelector(selectCostCenters);
     const locations = useSelector(selectLocations);
     const subLocations = useSelector(selectSubLocations);
 
@@ -94,10 +93,12 @@ const CreateRequest = () => {
     const handleFieldChange = (field, value) => {
         // If location is changed, reset sub-location
         if (field === "loc_no") {
-            dispatch(updateMaterialRequestFields({ 
-                [field]: value,
-                sub_loc_code: "" // Reset sub-location when location changes
-            }));
+            dispatch(
+                updateMaterialRequestFields({
+                    [field]: value,
+                    sub_loc_code: "", // Reset sub-location when location changes
+                })
+            );
         } else {
             dispatch(updateMaterialRequestFields({ [field]: value }));
         }
@@ -112,11 +113,8 @@ const CreateRequest = () => {
     const getFilteredSubLocations = () => {
         const selectedLocation = materialRequestDataForCreate.master_data.loc_no;
         if (!selectedLocation) return subLocations;
-        
-        return subLocations.filter(subLocation => 
-            subLocation.loc_code === selectedLocation || 
-            subLocation.master_location_id === selectedLocation
-        );
+
+        return subLocations.filter((subLocation) => subLocation.loc_code === selectedLocation || subLocation.master_location_id === selectedLocation);
     };
 
     // Get the next available line number - FIXED LOGIC (like admin app)
@@ -273,7 +271,7 @@ const CreateRequest = () => {
             master_data: {
                 ...materialRequestDataForCreate.master_data,
                 doc_date: mrHdr?.doc_date || today,
-                doc_req_date: mrHdr?.doc_req_date || requestedDate, 
+                doc_req_date: mrHdr?.doc_req_date || requestedDate,
                 total_amount: calculateTotalAmount(),
                 total_net_amount: calculateTotalAmount(),
                 total_tax_amount: 0,
@@ -303,6 +301,10 @@ const CreateRequest = () => {
     // Handle form submission
     const handleSubmit = async (isDraft = false) => {
         try {
+            if (!mrHdr?.loc_code || !mrHdr?.sub_loc_code) {
+                show("Pls fill the required feilds", "error");
+                return;
+            }
             const submissionData = prepareDataForSubmission(isDraft);
             const response = await dispatch(fetchUpdateMaterialRequest(submissionData)).unwrap();
             if (response?.success) {
@@ -390,14 +392,16 @@ const CreateRequest = () => {
                                 value={formatDateForInput(materialRequestDataForCreate.master_data.doc_date) || today}
                                 onChange={(e) => handleFieldChange("doc_date", e.target.value)}
                                 fullWidth
+                                required
                             />
 
-                            <TextField 
-                                label="Location" 
-                                select 
-                                value={materialRequestDataForCreate.master_data.loc_no || ""} 
-                                onChange={(e) => handleFieldChange("loc_no", e.target.value)} 
+                            <TextField
+                                label="Location"
+                                select
+                                value={materialRequestDataForCreate.master_data.loc_no || ""}
+                                onChange={(e) => handleFieldChange("loc_no", e.target.value)}
                                 fullWidth
+                                required
                                 placeholder="Select location"
                             >
                                 <MenuItem value="">Select Location</MenuItem>
@@ -408,13 +412,14 @@ const CreateRequest = () => {
                                 ))}
                             </TextField>
 
-                            <TextField 
-                                label="Sub-location" 
-                                select 
-                                value={materialRequestDataForCreate.master_data.sub_loc_code || ""} 
-                                onChange={(e) => handleFieldChange("sub_loc_code", e.target.value)} 
+                            <TextField
+                                label="Sub-location"
+                                select
+                                value={materialRequestDataForCreate.master_data.sub_loc_code || ""}
+                                onChange={(e) => handleFieldChange("sub_loc_code", e.target.value)}
                                 fullWidth
                                 disabled={!materialRequestDataForCreate.master_data.loc_no}
+                                required
                                 placeholder="Choose location to select sub location"
                             >
                                 <MenuItem value="">Select Sub-location</MenuItem>
@@ -446,6 +451,7 @@ const CreateRequest = () => {
                                 value={formatDateForInput(materialRequestDataForCreate.master_data.doc_req_date) || requestedDate}
                                 onChange={(e) => handleFieldChange("doc_req_date", e.target.value)}
                                 fullWidth
+                                required
                             />
 
                             <TextField

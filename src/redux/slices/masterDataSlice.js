@@ -128,7 +128,7 @@ export const searchProducts = createAsyncThunk("masterData/searchProducts", asyn
 
 // Fetch all master data at once
 export const fetchAllMasterData = createAsyncThunk("masterData/fetchAllMasterData", async (_, { dispatch }) => {
-    await Promise.all([dispatch(fetchCostCenters()), dispatch(fetchLocations()), dispatch(fetchSubLocations()), dispatch(fetchLocationDivisions()), dispatch(fetchProducts())]);
+    await Promise.all([dispatch(fetchLocations()), dispatch(fetchSubLocations()), dispatch(fetchBarcodes()), dispatch(fetchProducts())]);
 });
 
 const masterDataSlice = createSlice({
