@@ -46,6 +46,8 @@ import { fetchAllMasterData, selectLocations, selectSubLocations } from "../redu
 import { fetchUpdateMaterialRequest, resetMaterialRequestDataForCreate, updateMaterialRequestDetails, updateMaterialRequestFields } from "../redux/slices/materialRequestSlice";
 import getCurrentDateTimeUTC from "../utils/getCurrentDateTimeUTC";
 import getUserDetails from "../utils/getUserDetails";
+import InsightButton from "../components/request/InsightButton";
+import { fetchReportFiltersList } from "../redux/slices/businessIntelligenceReports";
 
 const CreateRequest = () => {
     const navigate = useNavigate();
@@ -617,28 +619,7 @@ const CreateRequest = () => {
                                         marginLeft: "auto",
                                     }}
                                 >
-                                    <Button
-                                        variant="outlined"
-                                        startIcon={<InventoryIcon sx={{ fontSize: 16 }} />}
-                                        onClick={() => setInsightModalOpen(true)}
-                                        sx={{
-                                            backgroundColor: "#f3e8ff",
-                                            color: "#9333ea",
-                                            borderColor: "#e9d5ff",
-                                            fontWeight: 600,
-                                            fontSize: "0.75rem",
-                                            py: 0.75,
-                                            px: 1.75,
-                                            borderRadius: "8px",
-                                            textTransform: "none",
-                                            "&:hover": {
-                                                backgroundColor: "#ede9fe",
-                                                borderColor: "#c084fc",
-                                            },
-                                        }}
-                                    >
-                                        Insight 360
-                                    </Button>
+                                    <InsightButton/>
 
                                     <Button
                                         color="primary"

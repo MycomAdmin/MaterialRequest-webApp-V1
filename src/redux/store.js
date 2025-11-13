@@ -1,6 +1,7 @@
 // src/redux/store.js
 import { configureStore } from "@reduxjs/toolkit";
 import authSlice from "./slices/authSlice";
+import businessIntelligenceReportsSlice from "./slices/businessIntelligenceReports";
 import masterDataSlice from "./slices/masterDataSlice";
 import materialRequestSlice from "./slices/materialRequestSlice";
 import notificationSlice from "./slices/notificationSlice";
@@ -13,6 +14,7 @@ export const store = configureStore({
         notification: notificationSlice,
         materialRequest: materialRequestSlice,
         masterData: masterDataSlice,
+        businessIntelligenceReports: businessIntelligenceReportsSlice,
     },
     middleware: (getDefaultMiddleware) => getDefaultMiddleware({ serializableCheck: false }),
     devTools: true,
