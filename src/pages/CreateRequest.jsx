@@ -214,34 +214,54 @@ const CreateRequest = () => {
     };
 
     // Handle quantity changes
-    const handleQuantityChange = (index, quantity) => {
+    const handleQuantityChange = (index, value) => {
         const updatedItems = [...materialRequestDataForCreate.details[0].data];
-        const packQty = parseInt(quantity) || 1;
         const currentItem = updatedItems[index];
 
-        updatedItems[index] = {
-            ...currentItem,
-            pack_qty: packQty,
-            total_amount: (currentItem.unit_price || 0) * packQty,
-            net_amount: (currentItem.unit_price || 0) * packQty,
-            _upd: currentItem._upd === "C" ? "C" : "U", // Keep as Create or mark as Update
-        };
+        // Allow empty string during typing
+        if (value === "") {
+            updatedItems[index] = {
+                ...currentItem,
+                pack_qty: "",
+                _upd: currentItem._upd === "C" ? "C" : "U",
+            };
+        } else {
+            const qty = Number(value);
+            updatedItems[index] = {
+                ...currentItem,
+                pack_qty: qty,
+                total_amount: (currentItem.unit_price || 0) * qty,
+                net_amount: (currentItem.unit_price || 0) * qty,
+                _upd: currentItem._upd === "C" ? "C" : "U",
+            };
+        }
+
         dispatch(updateMaterialRequestDetails(updatedItems));
     };
 
     // Handle unit price changes
-    const handleUnitPriceChange = (index, unitPrice) => {
+    const handleUnitPriceChange = (index, value) => {
         const updatedItems = [...materialRequestDataForCreate.details[0].data];
-        const price = parseFloat(unitPrice) || 0;
         const currentItem = updatedItems[index];
 
-        updatedItems[index] = {
-            ...currentItem,
-            unit_price: price,
-            total_amount: price * (currentItem.pack_qty || 1),
-            net_amount: price * (currentItem.pack_qty || 1),
-            _upd: currentItem._upd === "C" ? "C" : "U", // Keep as Create or mark as Update
-        };
+        // Allow empty input during editing
+        if (value === "") {
+            updatedItems[index] = {
+                ...currentItem,
+                unit_price: "",
+                _upd: currentItem._upd === "C" ? "C" : "U",
+            };
+        } else {
+            const price = Number(value);
+            updatedItems[index] = {
+                ...currentItem,
+                unit_price: price,
+                total_amount: price * (currentItem.pack_qty || 0),
+                net_amount: price * (currentItem.pack_qty || 0),
+                _upd: currentItem._upd === "C" ? "C" : "U",
+            };
+        }
+
         dispatch(updateMaterialRequestDetails(updatedItems));
     };
 
@@ -318,8 +338,8 @@ const CreateRequest = () => {
     // Handle form submission
     const handleSubmit = async (isDraft = false) => {
         try {
-            if (!mrHdr?.loc_code || !mrHdr?.sub_loc_code) {
-                show("Pls fill the required feilds", "error");
+            if (!mrHdr?.loc_no || !mrHdr?.sub_loc_code) {
+                show("Please fill the required feilds", "error");
                 return;
             }
             const submissionData = prepareDataForSubmission(isDraft);

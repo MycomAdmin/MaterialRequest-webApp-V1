@@ -23,7 +23,6 @@ export const MaterialCard = styled(Card)(({ theme }) => ({
   boxShadow: '0 4px 20px rgba(0, 0, 0, 0.06)',
   border: '1px solid rgba(255, 255, 255, 0.8)',
   transition: 'all 0.3s ease',
-  cursor: 'pointer',
   '&:hover': {
     transform: 'translateY(-4px)',
     boxShadow: '0 8px 25px rgba(0, 0, 0, 0.1)'
