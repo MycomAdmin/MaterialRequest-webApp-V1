@@ -105,12 +105,12 @@ export const fetchBarcodes = createAsyncThunk("masterData/fetchBarcodes", async 
 });
 
 // Products
-export const fetchProducts = createAsyncThunk("masterData/fetchProducts", async (_, { getState }) => {
+export const fetchProducts = createAsyncThunk("masterData/fetchProducts", async (product_code, { getState }) => {
     const clientId = getState().auth.clientInfo?.client_id;
     const payload = {
         table: "mast_product",
         operation: "list",
-        filter: `client_id = '${clientId}'`,
+        filter: `client_id = '${clientId}'${product_code ? ` AND product_code = '${product_code}'` : ''}`,
     };
     return await fetchListData("mast_product", payload);
 });

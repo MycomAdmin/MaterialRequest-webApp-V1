@@ -5,6 +5,7 @@ import {
     ArrowBack as ArrowBackIcon,
     Delete as DeleteIcon,
     Description as DescriptionIcon,
+    DocumentScanner,
     Edit as EditIcon,
     ExpandMore as ExpandMoreIcon,
     Inventory as InventoryIcon,
@@ -32,13 +33,15 @@ import {
     TextField,
     Typography,
 } from "@mui/material";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
-import InsightModal from "../components/InsightModal";
 import AppLayout from "../components/layout/AppLayout";
+import BarcodeScannerModal from "../components/modal/BarcodeScannerModal";
+import InsightModal from "../components/modal/InsightModal";
 import { GradientBox, GradientButton } from "../components/ui/StyledComponents";
 import { useNotification } from "../hooks/useNotification";
+import useProductsWithBarcodes from "../hooks/useProductsWithBarcodes";
 import { fetchAllMasterData, selectLocations, selectSubLocations } from "../redux/slices/masterDataSlice";
 import { fetchUpdateMaterialRequest, resetMaterialRequestDataForCreate, updateMaterialRequestDetails, updateMaterialRequestFields } from "../redux/slices/materialRequestSlice";
 import getCurrentDateTimeUTC from "../utils/getCurrentDateTimeUTC";
@@ -48,10 +51,16 @@ const CreateRequest = () => {
     const navigate = useNavigate();
     const dispatch = useDispatch();
     const { show } = useNotification();
+    const scannerRef = useRef(null);
 
     const [insightModalOpen, setInsightModalOpen] = useState(false);
     const [expandedItems, setExpandedItems] = useState({});
     const [restoreDialogOpen, setRestoreDialogOpen] = useState(false);
+    const [barcodeScannerOpen, setBarcodeScannerOpen] = useState(false);
+    const [scanningStatus, setScanningStatus] = useState("idle"); // idle, scanning, success, error
+    const [scanError, setScanError] = useState("");
+
+    const { findByBarcode } = useProductsWithBarcodes(barcodeScannerOpen);
 
     // Get data from materialRequestSlice
     const { materialRequestDataForCreate, materialRequestCreateLoader } = useSelector((state) => state.materialRequest);
@@ -84,6 +93,14 @@ const CreateRequest = () => {
         // Fetch all master data when component mounts
         dispatch(fetchAllMasterData());
     }, [dispatch, isEditMode]);
+
+    // Reset scanning state when scanner opens/closes
+    useEffect(() => {
+        if (barcodeScannerOpen) {
+            setScanningStatus("idle");
+            setScanError("");
+        }
+    }, [barcodeScannerOpen]);
 
     // Set default dates for new requests
     const today = new Date().toISOString().split("T")[0];
@@ -317,6 +334,36 @@ const CreateRequest = () => {
         }
     };
 
+    const handleScanned = async (barcode) => {
+        const item = findByBarcode(barcode);
+
+        if (!item) {
+            show("Item not found for this barcode", "error");
+            return;
+        }
+
+        const itemData = {
+            item_code: item.item_code,
+            item_desc: item.item_desc,
+            price1: item.price,
+        };
+
+        handleAddItems([itemData]);
+        show("Item added successfully!", "success");
+        setBarcodeScannerOpen(false);
+    };
+
+    const handleScannerError = (err) => {
+        console.log("Scanner error (likely non-critical):", err);
+
+        // Only show errors for actual permission denials
+        if (err?.name === "NotAllowedError") {
+            setScanError("Camera access denied. Please allow camera permissions.");
+            setScanningStatus("error");
+            show("Camera access denied. Please allow camera permissions.", "error");
+        }
+    };
+
     const items = materialRequestDataForCreate.details[0].data;
     const deletedItems = getDeletedItems();
     const activeItems = items.filter((item) => item._upd !== "D");
@@ -384,9 +431,10 @@ const CreateRequest = () => {
                         </Typography>
 
                         <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5, padding: "0rem 0.2rem" }}>
-                            {isEditMode && <TextField label="Document Number" value={materialRequestDataForCreate.master_data.doc_no || ""} InputProps={{ readOnly: true }} fullWidth />}
+                            {isEditMode && <TextField InputLabelProps={{ shrink: true }} label="Document Number" value={materialRequestDataForCreate.master_data.doc_no || ""} InputProps={{ readOnly: true }} fullWidth />}
 
                             <TextField
+                                InputLabelProps={{ shrink: true }}
                                 label="Date"
                                 type="date"
                                 value={formatDateForInput(materialRequestDataForCreate.master_data.doc_date) || today}
@@ -396,15 +444,18 @@ const CreateRequest = () => {
                             />
 
                             <TextField
+                                InputLabelProps={{ shrink: true }}
                                 label="Location"
                                 select
                                 value={materialRequestDataForCreate.master_data.loc_no || ""}
                                 onChange={(e) => handleFieldChange("loc_no", e.target.value)}
                                 fullWidth
                                 required
-                                placeholder="Select location"
+                                displayEmpty
                             >
-                                <MenuItem value="">Select Location</MenuItem>
+                                <MenuItem value="" disabled>
+                                    Select Location
+                                </MenuItem>
                                 {locations.map((location) => (
                                     <MenuItem key={location.loc_code} value={location.loc_code}>
                                         {location.loc_name || location.loc_code}
@@ -413,6 +464,7 @@ const CreateRequest = () => {
                             </TextField>
 
                             <TextField
+                                InputLabelProps={{ shrink: true }}
                                 label="Sub-location"
                                 select
                                 value={materialRequestDataForCreate.master_data.sub_loc_code || ""}
@@ -420,9 +472,11 @@ const CreateRequest = () => {
                                 fullWidth
                                 disabled={!materialRequestDataForCreate.master_data.loc_no}
                                 required
-                                placeholder="Choose location to select sub location"
+                                displayEmpty
                             >
-                                <MenuItem value="">Select Sub-location</MenuItem>
+                                <MenuItem value="" disabled>
+                                    Select Sub-location
+                                </MenuItem>
                                 {filteredSubLocations.map((subLocation) => (
                                     <MenuItem key={subLocation.sub_loc_code} value={subLocation.sub_loc_code}>
                                         {subLocation.sub_loc_name || subLocation.sub_loc_code}
@@ -430,22 +484,8 @@ const CreateRequest = () => {
                                 ))}
                             </TextField>
 
-                            {/* <TextField 
-                                label="Cost Center" 
-                                select 
-                                value={materialRequestDataForCreate.master_data.cost_center || ""} 
-                                onChange={(e) => handleFieldChange("cost_center", e.target.value)} 
-                                fullWidth
-                            >
-                                <MenuItem value="">Select Cost Center</MenuItem>
-                                {costCenters.map((costCenter) => (
-                                    <MenuItem key={costCenter.cost_center_code} value={costCenter.cost_center_code}>
-                                        {costCenter.cost_center_name || costCenter.cost_center_code}
-                                    </MenuItem>
-                                ))}
-                            </TextField> */}
-
                             <TextField
+                                InputLabelProps={{ shrink: true }}
                                 label="Requested Date"
                                 type="date"
                                 value={formatDateForInput(materialRequestDataForCreate.master_data.doc_req_date) || requestedDate}
@@ -455,6 +495,7 @@ const CreateRequest = () => {
                             />
 
                             <TextField
+                                InputLabelProps={{ shrink: true }}
                                 label="Remarks"
                                 multiline
                                 rows={1}
@@ -470,10 +511,34 @@ const CreateRequest = () => {
                     <Card sx={{ p: 2, mb: 2, borderRadius: "12px" }}>
                         <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2, flexWrap: "wrap", gap: "0.7rem", width: "100%" }}>
                             <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
-                                <Typography variant="subtitle1" fontWeight="600" sx={{ display: "flex", alignItems: "center", fontSize: "0.9rem" }}>
-                                    <InventoryIcon sx={{ color: "#4361ee", mr: 1, fontSize: 18 }} />
-                                    Request Items ({activeItems.length})
-                                </Typography>
+                                <Box sx={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
+                                    <Typography variant="subtitle1" fontWeight="600" sx={{ display: "flex", alignItems: "center", fontSize: "0.9rem" }}>
+                                        <InventoryIcon sx={{ color: "#4361ee", mr: 1, fontSize: 18 }} />
+                                        Request Items ({activeItems.length})
+                                    </Typography>
+                                    <Button
+                                        variant="outlined"
+                                        startIcon={<DocumentScanner sx={{ fontSize: 16, transform: "rotate(90deg)", transition: "transform 0.3s ease" }} />}
+                                        onClick={() => setBarcodeScannerOpen(true)}
+                                        sx={{
+                                            backgroundColor: "#e0f7fa",
+                                            color: "#00796b",
+                                            borderColor: "#b2ebf2",
+                                            fontWeight: 600,
+                                            fontSize: "0.75rem",
+                                            py: 0.75,
+                                            px: 1.75,
+                                            borderRadius: "8px",
+                                            textTransform: "none",
+                                            "&:hover": {
+                                                backgroundColor: "#b2ebf2",
+                                                borderColor: "#80deea",
+                                            },
+                                        }}
+                                    >
+                                        Scan Barcode
+                                    </Button>
+                                </Box>
                                 {isEditMode && deletedItems.length > 0 && (
                                     <Button
                                         variant="outlined"
@@ -678,6 +743,7 @@ const CreateRequest = () => {
                                             <Box sx={{ mt: 1.5, display: "flex", flexDirection: "column", gap: 1.5 }}>
                                                 <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1 }}>
                                                     <TextField
+                                                        InputLabelProps={{ shrink: true }}
                                                         label="Item Code"
                                                         value={item.item_code}
                                                         size="small"
@@ -685,9 +751,9 @@ const CreateRequest = () => {
                                                             readOnly: true,
                                                             sx: { fontSize: "0.8rem", height: "32px" },
                                                         }}
-                                                        InputLabelProps={{ sx: { fontSize: "0.8rem" } }}
                                                     />
                                                     <TextField
+                                                        InputLabelProps={{ shrink: true }}
                                                         label="Line Number"
                                                         value={item.line_number}
                                                         size="small"
@@ -695,12 +761,12 @@ const CreateRequest = () => {
                                                             readOnly: true,
                                                             sx: { fontSize: "0.8rem", height: "32px" },
                                                         }}
-                                                        InputLabelProps={{ sx: { fontSize: "0.8rem" } }}
                                                     />
                                                 </Box>
 
                                                 <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1 }}>
                                                     <TextField
+                                                        InputLabelProps={{ shrink: true }}
                                                         label="Quantity"
                                                         type="number"
                                                         value={item.pack_qty}
@@ -710,9 +776,9 @@ const CreateRequest = () => {
                                                             min: 1,
                                                             style: { fontSize: "0.8rem", height: "32px" },
                                                         }}
-                                                        InputLabelProps={{ sx: { fontSize: "0.8rem" } }}
                                                     />
                                                     <TextField
+                                                        InputLabelProps={{ shrink: true }}
                                                         label="Unit Price"
                                                         type="number"
                                                         value={item.unit_price}
@@ -723,11 +789,11 @@ const CreateRequest = () => {
                                                             step: 0.01,
                                                             style: { fontSize: "0.8rem", height: "32px" },
                                                         }}
-                                                        InputLabelProps={{ sx: { fontSize: "0.8rem" } }}
                                                     />
                                                 </Box>
 
                                                 <TextField
+                                                    InputLabelProps={{ shrink: true }}
                                                     label="Total Amount"
                                                     value={(item.unit_price * item.pack_qty).toFixed(2)}
                                                     size="small"
@@ -735,7 +801,6 @@ const CreateRequest = () => {
                                                         readOnly: true,
                                                         sx: { fontSize: "0.8rem", height: "32px" },
                                                     }}
-                                                    InputLabelProps={{ sx: { fontSize: "0.8rem" } }}
                                                 />
                                             </Box>
                                         </Collapse>
@@ -834,6 +899,16 @@ const CreateRequest = () => {
                     </DialogActions>
                 </Dialog>
             </Box>
+
+            <BarcodeScannerModal
+                barcodeScannerOpen={barcodeScannerOpen}
+                setBarcodeScannerOpen={setBarcodeScannerOpen}
+                scanningStatus={scanningStatus}
+                scanError={scanError}
+                scannerRef={scannerRef}
+                handleScanned={handleScanned}
+                handleScannerError={handleScannerError}
+            />
         </AppLayout>
     );
 };

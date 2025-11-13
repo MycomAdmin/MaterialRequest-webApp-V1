@@ -1,6 +1,6 @@
 // src/pages/Login.jsx
 import { AdminPanelSettings, EmailRounded, LockRounded, Visibility, VisibilityOff } from "@mui/icons-material";
-import { Box, Card, CardContent, Fade, InputAdornment, TextField, Typography } from "@mui/material";
+import { Box, Card, CardContent, Fade, IconButton, InputAdornment, TextField, Typography } from "@mui/material";
 import { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
@@ -239,7 +239,7 @@ const Login = () => {
                                             ),
                                             endAdornment: (
                                                 <InputAdornment position="end" sx={{ cursor: "pointer" }} onClick={togglePasswordVisibility}>
-                                                    {showPassword ? <VisibilityOff color={error ? "error" : "action"} /> : <Visibility color={error ? "error" : "action"} />}
+                                                    <IconButton>{showPassword ? <VisibilityOff color={error ? "error" : "action"} /> : <Visibility color={error ? "error" : "action"} />}</IconButton>
                                                 </InputAdornment>
                                             ),
                                         }}

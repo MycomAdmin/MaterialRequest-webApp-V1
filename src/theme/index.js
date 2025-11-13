@@ -116,7 +116,16 @@ export const theme = createTheme({
                         },
                         "& input": {
                             padding: "0 12px 4px",
-                            fontSize: "13px",
+                            fontSize: "16px",
+                            // Force placeholder to always be visible
+                            "&::placeholder": {
+                                opacity: 1,
+                                color: "#9CA3AF", // or your desired placeholder color
+                            },
+                        },
+                        // This ensures the placeholder is visible even when focused
+                        "&.Mui-focused input::placeholder": {
+                            opacity: 1,
                         },
                     },
                     // Keep the label but make it static (non-floating)
@@ -124,7 +133,7 @@ export const theme = createTheme({
                         position: "static",
                         transform: "none",
                         marginBottom: "8px",
-                        fontSize: "13px",
+                        fontSize: "14px",
                         fontWeight: 600,
                         color: "#374151",
                         lineHeight: 1.2,
@@ -135,6 +144,13 @@ export const theme = createTheme({
                     "& .MuiOutlinedInput-notchedOutline": {
                         "& legend": {
                             display: "none",
+                        },
+                    },
+                    // Additional fix for the input placeholder
+                    "& .MuiInputBase-input": {
+                        "&::placeholder": {
+                            opacity: 1,
+                            color: "#9CA3AF",
                         },
                     },
                 },

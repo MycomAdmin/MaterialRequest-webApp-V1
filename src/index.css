@@ -10,7 +10,7 @@
 body {
   font-family: 'Inter', sans-serif;
   background: linear-gradient(135deg, #f0f4ff 0%, #f8fafc 100%);
-  min-height: 100vh;
+  min-height: 100dvh;
 }
 
 /* Custom scrollbar */

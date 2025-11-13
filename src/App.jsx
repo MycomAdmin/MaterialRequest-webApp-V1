@@ -1,4 +1,5 @@
 // src/App.jsx
+import "./App.css"
 import { CssBaseline } from "@mui/material";
 import { ThemeProvider } from "@mui/material/styles";
 import { useEffect } from "react";

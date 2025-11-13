@@ -9,91 +9,19 @@ import {
     StorageRounded,
 } from "@mui/icons-material";
 import { Box, Button, Checkbox, Chip, CircularProgress, Dialog, DialogContent, DialogTitle, Divider, IconButton, InputAdornment, List, ListItem, ListItemText, TextField, Tooltip, Typography } from "@mui/material";
-import { useEffect, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import { fetchBarcodes, fetchProducts, selectBarcodes, selectMasterDataLoading, selectProducts } from "../redux/slices/masterDataSlice";
-import { GradientButton } from "./ui/StyledComponents";
+import { useState } from "react";
+import useProductsWithBarcodes from "../../hooks/useProductsWithBarcodes";
+import { GradientButton } from "../ui/StyledComponents";
 
 const InsightModal = ({ open, onClose, onSelectItems }) => {
-    const dispatch = useDispatch();
     const [searchQuery, setSearchQuery] = useState("");
     const [activeTab, setActiveTab] = useState("all");
     const [selectedItems, setSelectedItems] = useState([]);
 
-    // Get data from Redux store
-    const products = useSelector(selectProducts);
-    const barcodes = useSelector(selectBarcodes);
-    const { products: productsLoading, barcodes: barcodesLoading } = useSelector(selectMasterDataLoading);
-
-    const loading = productsLoading || barcodesLoading;
-
-    // Fetch products and barcodes when modal opens
-    useEffect(() => {
-        if (open) {
-            // Fetch products and barcodes if not already loaded
-            if (products?.length === 0) {
-                dispatch(fetchProducts());
-            }
-            if (barcodes?.length === 0) {
-                dispatch(fetchBarcodes());
-            }
-        }
-    }, [open, dispatch, products?.length, barcodes?.length]);
-
-    // Function to combine products with barcodes
-    const getProductsWithBarcodes = (productsList) => {
-        if (!productsList || !barcodes) return [];
-
-        return productsList.flatMap((product) => {
-            // Get all barcodes that belong to this product
-            const relatedBarcodes = barcodes.filter(
-                (b) => b.product_id?.trim() === product.product_id?.trim() || b.product_id?.trim() === product.master_product_id?.trim() || b.product_code?.trim() === product.product_code?.trim()
-            );
-
-            // If no barcode found, just return the product as-is
-            if (relatedBarcodes.length === 0)
-                return [
-                    {
-                        ...product,
-                        isBarcodeItem: false,
-                        uniqueId: `product-${product.product_id}`,
-                        item_desc: product.product_des,
-                        item_code: product.product_code,
-                        uom: product.uom_code,
-                        price: product.price1,
-                        category: product.product_category || product.item_type,
-                        stock: product.item_qty,
-                    },
-                ];
-
-            // Create a row for each barcode
-            return relatedBarcodes
-                .filter((br) => br.valid == "Y")
-                .map((barcode) => ({
-                    // Product base data
-                    ...product,
-                    // Barcode specific overrides
-                    item_desc: barcode.barcode_description?.trim() || product.product_des,
-                    item_code: barcode.product_code || product.product_code,
-                    uom: barcode.uom_code || product.uom_code,
-                    price: product.price1,
-                    category: product.product_category || product.item_type,
-                    stock: product.item_qty,
-                    // Barcode metadata
-                    barcode_type: barcode.barcode_type,
-                    barcode_description: barcode.barcode_description,
-                    is_default: barcode.is_default,
-                    is_supplier_barcode: barcode.is_supplier_barcode,
-                    valid: barcode.valid,
-                    barcode_data: barcode,
-                    isBarcodeItem: true,
-                    uniqueId: `barcode-${barcode.product_code}-${product.product_id}`,
-                }));
-        });
-    };
+    const { productsWithBarcodes, loading } = useProductsWithBarcodes(open);
 
     // Apply barcode combination to all products
-    const allItemsWithBarcodes = getProductsWithBarcodes(products);
+    const allItemsWithBarcodes = productsWithBarcodes;
 
     // Filter items based on active tab first
     const getTabFilteredItems = (items) => {
@@ -236,7 +164,7 @@ const InsightModal = ({ open, onClose, onSelectItems }) => {
                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <Typography variant="h6" sx={{ display: "flex", alignItems: "center", fontSize: "1.1rem" }}>
                         <StorageRounded sx={{ color: "#9333ea", mr: 1.5, fontSize: 22 }} />
-                        Insight 360 - Select Materials
+                        Select Materials
                     </Typography>
                     <IconButton onClick={onClose} size="small" sx={{ padding: 0.75 }}>
                         <CloseIcon sx={{ fontSize: 20 }} />

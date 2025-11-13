@@ -14,6 +14,8 @@ export const store = configureStore({
         materialRequest: materialRequestSlice,
         masterData: masterDataSlice,
     },
+    middleware: (getDefaultMiddleware) => getDefaultMiddleware({ serializableCheck: false }),
+    devTools: true,
 });
 
 export default store;
