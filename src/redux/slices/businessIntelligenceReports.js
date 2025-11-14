@@ -4,6 +4,8 @@ import axios from "axios";
 import { previousDate } from "../../utils/helper";
 const axiosBIInstance = "https://web.mycomsys.com:8814/WEBCLOUD_TESTSRV/api/ai/";
 
+localStorage.setItem("bi_client_id", "client_001")
+
 const initialState = {
     aiToggle: false,
     reportsList: {
@@ -48,7 +50,7 @@ const initialState = {
 export const fetchReportsList = createAsyncThunk("fetchReportsList", async (_, { rejectWithValue }) => {
     try {
         const client_id = localStorage.getItem("bi_client_id");
-        const response = await axiosBIInstance.post("AI_Dashboard_Filters", {
+        const response = await axios.post(axiosBIInstance + "AI_Dashboard_Filters", {
             client_id: client_id,
             type: "ReportNames",
         });
@@ -98,7 +100,7 @@ export const fetchBelowCostAnalysisReport = createAsyncThunk("fetchBelowCostAnal
         //     filters.max_records = max_records;
         // }
 
-        const response = await axiosBIInstance.post("below_cost_analysis_using_ai_test", {
+        const response = await axios.post(axiosBIInstance + "below_cost_analysis_using_ai_test", {
             DATA: {
                 client_id: client_id,
                 // currency_decimals: 3,
@@ -132,7 +134,7 @@ export const fetchBelowCostAnalysisNonAiReport = createAsyncThunk("fetchBelowCos
         // if (max_records) {
         //     filters.max_records = max_records;
         // }
-        const response = await axiosBIInstance.post("below_cost_analysis_v18_without_ai_test", {
+        const response = await axios.post(axiosBIInstance + "below_cost_analysis_v18_without_ai_test", {
             DATA: {
                 client_id: client_id,
                 // currency_decimals: 3,
@@ -159,7 +161,7 @@ export const fetchMarginPerformanceAnalysisReport = createAsyncThunk("fetchMargi
         //     filters.supp_code = supplier_code;
         // }
 
-        const response = await axiosBIInstance.post("margin_performace_inV18_using_ai_test", {
+        const response = await axios.post(axiosBIInstance + "margin_performace_inV18_using_ai_test", {
             DATA: {
                 client_id: client_id,
                 // currency_decimals: 3,
@@ -189,7 +191,7 @@ export const fetchMarginPerformanceAnalysisNonAiReport = createAsyncThunk("fetch
         //     filters.supp_code = supplier_code;
         // }
 
-        const response = await axiosBIInstance.post("margin_performace_inV18_without_ai_test", {
+        const response = await axios.post(axiosBIInstance + "margin_performace_inV18_without_ai_test", {
             DATA: {
                 client_id: client_id,
                 // currency_decimals: 3,
@@ -219,7 +221,7 @@ export const fetchStockOutLoseRevenueAnalysisReport = createAsyncThunk("fetchSto
         //     filters.supp_code = supplier_code;
         // }
 
-        const response = await axiosBIInstance.post("lost_revenue_analysis_invent_v18_ai_test", {
+        const response = await axios.post(axiosBIInstance + "lost_revenue_analysis_invent_v18_ai_test", {
             DATA: {
                 client_id: client_id,
                 // history_days: 90,
@@ -249,7 +251,7 @@ export const fetchStockOutLoseRevenueAnalysisNonAiReport = createAsyncThunk("fet
         //     filters.supp_code = supplier_code;
         // }
 
-        const response = await axiosBIInstance.post("lost_revenue_analysis_invent_v18_without_ai_test", {
+        const response = await axios.post(axiosBIInstance + "lost_revenue_analysis_invent_v18_without_ai_test", {
             DATA: {
                 client_id: client_id,
                 // history_days: 90,
@@ -269,7 +271,7 @@ export const fetchStockForecastAnalysisNonAiReport = createAsyncThunk("fetchStoc
         const client_id = localStorage.getItem("bi_client_id");
         const payloadFilters = filters;
 
-        const response = await axiosBIInstance.post("forecast_order_requirement_without_ai_test", {
+        const response = await axios.post(axiosBIInstance + "forecast_order_requirement_without_ai_test", {
             DATA: {
                 client_id: client_id,
                 // currency_decimals: 3,
@@ -295,7 +297,7 @@ export const fetchStockForecastAnalysisReport = createAsyncThunk("fetchStockFore
     try {
         const client_id = localStorage.getItem("bi_client_id");
         const payloadFilters = filters;
-        const response = await axiosBIInstance.post("forecast_order_requirement_using_ai_test", {
+        const response = await axios.post(axiosBIInstance + "forecast_order_requirement_using_ai_test", {
             DATA: {
                 client_id: client_id,
                 // currency_decimals: 3,
@@ -329,7 +331,7 @@ export const fetchAutoReOrderProcessReport = createAsyncThunk("fetchAutoReOrderP
         //     filters.supp_code = supplier_code;
         // }
 
-        const response = await axiosBIInstance.post("forecast_order_requirement_using_ai_test", {
+        const response = await axios.post(axiosBIInstance + "forecast_order_requirement_using_ai_test", {
             DATA: {
                 client_id: client_id,
                 // currency_decimals: 3,
@@ -402,7 +404,7 @@ export const fetchSlowMovingItemsAiReport = createAsyncThunk("fetchSlowMovingIte
         //     filters.max_records = max_records;
         // }
 
-        const response = await axiosBIInstance.post("slow_moving_items_v18_with_ai", {
+        const response = await axios.post(axiosBIInstance + "slow_moving_items_v18_with_ai", {
             DATA: {
                 client_id: client_id,
                 // history_days_a: 90,
@@ -439,7 +441,7 @@ export const fetchSlowMovingItemsNonAiReport = createAsyncThunk("fetchSlowMoving
         //     filters.max_records = max_records;
         // }
 
-        const response = await axiosBIInstance.post("slow_moving_items_v18_without_ai", {
+        const response = await axios.post(axiosBIInstance + "slow_moving_items_v18_without_ai", {
             DATA: {
                 client_id: client_id,
                 // history_days_a: 90,
@@ -462,7 +464,7 @@ export const fetchSlowMovingItemsNonAiReport = createAsyncThunk("fetchSlowMoving
 export const fetchGroupList = createAsyncThunk("fetchGroupList", async (_, { rejectWithValue }) => {
     try {
         const client_id = localStorage.getItem("bi_client_id");
-        const response = await axiosBIInstance.post("AI_Dashboard_Filters", {
+        const response = await axios.post(axiosBIInstance + "AI_Dashboard_Filters", {
             client_id: client_id,
             type: "Group",
         });
@@ -475,7 +477,7 @@ export const fetchGroupList = createAsyncThunk("fetchGroupList", async (_, { rej
 export const fetchSubGroupListById = createAsyncThunk("fetchSubGroupListById", async (group_code, { rejectWithValue }) => {
     try {
         const client_id = localStorage.getItem("bi_client_id");
-        const response = await axiosBIInstance.post("AI_Dashboard_Filters", {
+        const response = await axios.post(axiosBIInstance + "AI_Dashboard_Filters", {
             client_id: client_id,
             group_code: group_code,
             type: "Sub_group",
@@ -489,7 +491,7 @@ export const fetchSubGroupListById = createAsyncThunk("fetchSubGroupListById", a
 export const fetchLocationsList = createAsyncThunk("fetchLocationsList", async (_, { rejectWithValue }) => {
     try {
         const client_id = localStorage.getItem("bi_client_id");
-        const response = await axiosBIInstance.post("AI_Dashboard_Filters", {
+        const response = await axios.post(axiosBIInstance + "AI_Dashboard_Filters", {
             client_id: client_id,
             type: "Location",
         });
@@ -511,7 +513,7 @@ export const fetchSupplierList = createAsyncThunk("fetchSupplierList", async ({ 
         }
 
         const client_id = localStorage.getItem("bi_client_id");
-        const response = await axiosBIInstance.post("AI_Dashboard_Filters", {
+        const response = await axios.post(axiosBIInstance + "AI_Dashboard_Filters", {
             client_id: client_id,
             type: "Supplier",
             ...filters,

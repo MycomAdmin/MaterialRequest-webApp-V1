@@ -19,7 +19,7 @@ export default function useProductsWithBarcodes(openTrigger = true) {
         }
     }, [openTrigger, dispatch]);
 
-    // Merge products + barcodes (same logic as InsightModal)
+    // Merge products + barcodes (same logic as AddItemsModal)
     const mergedItems = useMemo(() => {
         if (!products || !barcodes) return [];
 

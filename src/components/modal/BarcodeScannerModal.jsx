@@ -273,7 +273,7 @@ export default function BarcodeScannerModal({ barcodeScannerOpen, setBarcodeScan
                         {/*  SCAN FRAME CLEAN VERSION */}
                         <Box
                             sx={{
-                                width: 360,
+                                width: {xs: "95%", sm: "90%", md: "78%", lg: "52%", xl: "50%"},
                                 height: 260,
                                 borderRadius: "14px",
                                 border: "3px solid #4361ee",

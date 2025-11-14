@@ -22,7 +22,7 @@ import { handleApiResponse } from "../../utils/notificationUtils";
 import DropDown from "./DropDown";
 import SupplierSearch from "./SupplierSearch";
 
-const FilterDrawer = ({ open, api, onClose }) => {
+const FilterDrawer = ({ open, api, onClose, toggleInsightModal }) => {
     // All hooks must be called unconditionally at the top level
     const dispatch = useDispatch();
     const theme = useTheme();
@@ -128,10 +128,11 @@ const FilterDrawer = ({ open, api, onClose }) => {
 
         proceedToApply();
     };
-
+    
     const proceedToApply = async () => {
         try {
             onClose();
+            toggleInsightModal(true);
 
             const invalidFields = [];
 
@@ -283,9 +284,15 @@ const FilterDrawer = ({ open, api, onClose }) => {
             case "date":
                 return (
                     <Box key={filter.name} mb={2}>
-                        <Typography variant="subtitle2" mb={1} sx={{ 
-                            // fontFamily: theme.palette.typography.fontFamily,
-                             fontSize: "14px", fontWeight: 600 }}>
+                        <Typography
+                            variant="subtitle2"
+                            mb={0.5}
+                            sx={{
+                                // fontFamily: theme.palette.typography.fontFamily,
+                                fontSize: "14px",
+                                fontWeight: 600,
+                            }}
+                        >
                             {filter.label}{" "}
                             {filter.criteria === "Mandatory" && (
                                 <Box component="span" sx={{ color: "red" }}>
@@ -304,7 +311,7 @@ const FilterDrawer = ({ open, api, onClose }) => {
                                     size: "small",
                                     sx: {
                                         "& .MuiInputBase-root": {
-                                            height: "44px",
+                                            height: "36px",
                                         },
                                     },
                                 },
@@ -371,9 +378,15 @@ const FilterDrawer = ({ open, api, onClose }) => {
             case "number":
                 return (
                     <Box key={filter.name} mb={2}>
-                        <Typography variant="subtitle2" mb={1} sx={{ 
-                            // fontFamily: theme.palette.typography.fontFamily, 
-                            fontSize: "14px", fontWeight: 600 }}>
+                        <Typography
+                            variant="subtitle2"
+                            mb={1}
+                            sx={{
+                                // fontFamily: theme.palette.typography.fontFamily,
+                                fontSize: "14px",
+                                fontWeight: 600,
+                            }}
+                        >
                             {filter.label}{" "}
                             {filter.criteria === "Mandatory" && (
                                 <Box component="span" sx={{ color: "red" }}>
@@ -416,14 +429,21 @@ const FilterDrawer = ({ open, api, onClose }) => {
                             }}
                             sx={{
                                 "& .MuiInputBase-root": {
-                                    height: "44px",
+                                    height: "36px",
                                 },
                             }}
                         />
                         {filter.limit && (
-                            <Typography variant="caption" color="text.secondary" mt={0.5} sx={{ 
-                                // fontFamily: theme.palette.typography.fontFamily
-                                 }}>
+                            <Typography
+                                variant="caption"
+                                color="text.secondary"
+                                mt={0.5}
+                                sx={
+                                    {
+                                        // fontFamily: theme.palette.typography.fontFamily
+                                    }
+                                }
+                            >
                                 Max {filter.limit} {filter.name.includes("days") ? "days" : filter.name.includes("months") ? "months" : "records"} allowed.
                             </Typography>
                         )}
@@ -584,7 +604,7 @@ const FilterDrawer = ({ open, api, onClose }) => {
                                     flexWrap: "wrap",
                                 }}
                             >
-                                <Box component="span">{selectedReport?.label || ""}</Box>
+                                <Box component="span">{selectedReport?.label || "Insight 360"}</Box>
                                 {aiToggle && (
                                     <Box
                                         sx={{

@@ -17,7 +17,7 @@ const CustomBottomNavigation = () => {
 
     const isActive = (path) => location.pathname === path;
 
-    const isLogin = location.pathname.includes("login")
+    const isLogin = location.pathname.includes("login");
 
     return (
         <Box
@@ -30,9 +30,12 @@ const CustomBottomNavigation = () => {
                 bgcolor: "white",
                 borderTop: "1px solid",
                 borderColor: "grey.200",
-                py: 1.5,
-                px: 2,
-                borderRadius: "18px 18px 0 0"
+                py: 1,
+                px: 1,
+                borderRadius: "18px 18px 0 0",
+                maxWidth: "768px",
+                margin: "0 auto",
+                boxShadow: "0 4px 20px rgba(0, 0, 0, 0.2)"
             }}
         >
             <Box
@@ -40,7 +43,7 @@ const CustomBottomNavigation = () => {
                     display: "flex",
                     justifyContent: "space-around",
                     alignItems: "center",
-                    maxWidth: 400,
+                    maxWidth: "768px",
                     mx: "auto",
                 }}
             >
@@ -55,7 +58,7 @@ const CustomBottomNavigation = () => {
                                 flexDirection: "column",
                                 alignItems: "center",
                                 gap: 0.5,
-                                padding: 1.5,
+                                padding: 1,
                                 borderRadius: 1,
                                 cursor: "pointer",
                                 transition: "all 0.2s ease",
@@ -63,9 +66,7 @@ const CustomBottomNavigation = () => {
                                 backgroundColor: active ? "rgba(67, 97, 238, 0.08)" : "transparent",
                                 transform: active ? "scale(0.95)" : "scale(1)",
                                 "&:hover": {
-                                    backgroundColor: active 
-                                        ? "rgba(67, 97, 238, 0.12)" 
-                                        : "rgba(0, 0, 0, 0.04)",
+                                    backgroundColor: active ? "rgba(67, 97, 238, 0.12)" : "rgba(0, 0, 0, 0.04)",
                                 },
                                 "& .MuiSvgIcon-root": {
                                     fontSize: "1.4rem",

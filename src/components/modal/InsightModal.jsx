@@ -1,451 +1,399 @@
-// src/components/InsightModal.jsx
-import {
-    QrCode as BarcodeIcon,
-    CheckBox as CheckBoxIcon,
-    CheckBoxOutlineBlank as CheckBoxOutlineBlankIcon,
-    Close as CloseIcon,
-    Inventory as InventoryIcon,
-    Search as SearchIcon,
-    StorageRounded,
-} from "@mui/icons-material";
+import { Close as CloseIcon, Inventory as InventoryIcon, Timeline as SalesIcon, Search as SearchIcon, StorageRounded, TrendingDown as TrendingDownIcon, TrendingUp as TrendingUpIcon } from "@mui/icons-material";
+
 import { Box, Button, Checkbox, Chip, CircularProgress, Dialog, DialogContent, DialogTitle, Divider, IconButton, InputAdornment, List, ListItem, ListItemText, TextField, Tooltip, Typography } from "@mui/material";
-import { useState } from "react";
-import useProductsWithBarcodes from "../../hooks/useProductsWithBarcodes";
+
+import { useMemo, useState } from "react";
+import { useSelector } from "react-redux";
 import { GradientButton } from "../ui/StyledComponents";
 
 const InsightModal = ({ open, onClose, onSelectItems }) => {
+    // --------------------------
+    // Redux Data
+    // --------------------------
+    const { reportData, reportLoading } = useSelector((state) => state?.businessIntelligenceReports || {});
+
+    const data = reportData?.items_data ?? [];
+
+    // --------------------------
+    // Local States
+    // --------------------------
     const [searchQuery, setSearchQuery] = useState("");
     const [activeTab, setActiveTab] = useState("all");
     const [selectedItems, setSelectedItems] = useState([]);
 
-    const { productsWithBarcodes, loading } = useProductsWithBarcodes(open);
+    // --------------------------
+    // Tabs with counts (optimized)
+    // --------------------------
+    const tabs = useMemo(() => {
+        const withSales = data?.filter((item) => item?.monthly_sales_history?.length > 0) || [];
+        const noSales = data?.filter((item) => !item?.monthly_sales_history?.length) || [];
 
-    // Apply barcode combination to all products
-    const allItemsWithBarcodes = productsWithBarcodes;
+        return [
+            { id: "all", label: "All Items", count: data?.length || 0 },
+            { id: "withSales", label: "With Sales", count: withSales?.length || 0 },
+            { id: "noSales", label: "No Sales", count: noSales?.length || 0 },
+        ];
+    }, [data]);
 
-    // Filter items based on active tab first
-    const getTabFilteredItems = (items) => {
-        switch (activeTab) {
-            case "barcode":
-                return items.filter((item) => item.isBarcodeItem && item.valid === "Y");
-            case "products":
-                return items.filter((item) => !item.isBarcodeItem);
-            default:
-                return items;
+    // --------------------------
+    // Filter items by tab
+    // --------------------------
+    const tabFiltered = useMemo(() => {
+        if (activeTab === "withSales") {
+            return data?.filter((item) => item?.monthly_sales_history?.length > 0) ?? [];
         }
-    };
-
-    // Then apply search filter locally
-    const getSearchFilteredItems = (items) => {
-        if (!searchQuery.trim()) return items;
-
-        const searchLower = searchQuery.toLowerCase();
-        return items.filter((item) => {
-            if (!item) return false;
-
-            return (
-                item.item_desc?.toLowerCase().includes(searchLower) ||
-                item.product_des?.toLowerCase().includes(searchLower) ||
-                item.product_id?.toString().toLowerCase().includes(searchLower) ||
-                item.product_code?.toLowerCase().includes(searchLower) ||
-                item.item_code?.toLowerCase().includes(searchLower) ||
-                (item.isBarcodeItem && item.barcode_description?.toLowerCase().includes(searchLower)) ||
-                (item.isBarcodeItem && item.barcode_type?.toLowerCase().includes(searchLower))
-            );
-        });
-    };
-
-    // Get final display items by applying both tab and search filters
-    const tabFilteredItems = getTabFilteredItems(allItemsWithBarcodes);
-    const displayItems = getSearchFilteredItems(tabFilteredItems);
-
-    const tabs = [
-        { id: "all", label: "All Items" },
-        { id: "barcode", label: "With Barcodes" },
-        { id: "products", label: "Products Only" },
-    ];
-
-    const handleToggleSelect = (item) => {
-        setSelectedItems((prev) => {
-            const isSelected = prev.some((selected) => selected.uniqueId === item.uniqueId);
-
-            if (isSelected) {
-                return prev.filter((selected) => selected.uniqueId !== item.uniqueId);
-            } else {
-                return [...prev, item];
-            }
-        });
-    };
-
-    const handleImportSelected = () => {
-        if (selectedItems.length > 0) {
-            onSelectItems(selectedItems);
+        if (activeTab === "noSales") {
+            return data?.filter((item) => !item?.monthly_sales_history?.length) ?? [];
         }
-        setSelectedItems([]);
-        onClose();
+        return data ?? [];
+    }, [activeTab, data]);
+
+    // --------------------------
+    // Search Filtering
+    // --------------------------
+    const displayItems = useMemo(() => {
+        if (!searchQuery?.trim?.()) return tabFiltered || [];
+
+        const q = searchQuery?.toLowerCase?.() || "";
+
+        return (
+            tabFiltered?.filter?.(
+                (item) => item?.item_des?.toLowerCase?.().includes(q) || item?.item_code?.toLowerCase?.().includes(q) || item?.group_des?.toLowerCase?.().includes(q) || item?.supp_code?.toLowerCase?.().includes(q)
+            ) ?? []
+        );
+    }, [searchQuery, tabFiltered]);
+
+    // --------------------------
+    // Select / Deselect
+    // --------------------------
+    const toggleSelect = (item) => {
+        setSelectedItems((prev = []) => (prev?.some((x) => x?.item_code === item?.item_code) ? prev?.filter((x) => x?.item_code !== item?.item_code) : [...prev, item]));
     };
 
-    const isItemSelected = (item) => {
-        return selectedItems.some((selected) => selected.uniqueId === item.uniqueId);
-    };
+    const isSelected = (item) => selectedItems?.some((x) => x?.item_code === item?.item_code);
 
     const handleSelectAll = () => {
-        if (selectedItems.length === displayItems.length) {
-            setSelectedItems([]);
-        } else {
-            setSelectedItems([...displayItems]);
-        }
+        selectedItems?.length === displayItems?.length ? setSelectedItems([]) : setSelectedItems(displayItems);
     };
 
-    const getItemitem_desc = (item) => {
-        return item.item_desc || item.product_des || "Unknown Item";
+    const handleImport = () => {
+        onSelectItems?.(selectedItems);
+        setSelectedItems([]);
+        onClose?.();
     };
 
-    const getItemitem_code = (item) => {
-        return item.item_code || item.product_code || "UNKNOWN";
+    const clearSearch = () => setSearchQuery("");
+
+    // --------------------------
+    // Sales Status Badge
+    // --------------------------
+    const getSalesStatus = (item = {}) => {
+        const salesCount = item?.monthly_sales_history?.length ?? 0;
+
+        return salesCount === 0
+            ? {
+                  color: "#ef4444",
+                  icon: <TrendingDownIcon />,
+                  label: "",
+              }
+            : salesCount <= 3
+            ? {
+                  color: "#f59e0b",
+                  icon: <SalesIcon />,
+                  label: `${salesCount} months`,
+              }
+            : {
+                  color: "#10b981",
+                  icon: <TrendingUpIcon />,
+                  label: `${salesCount} months`,
+              };
     };
 
-    const getStockInfo = (item) => {
-        if (item.stock !== undefined && item.uom) {
-            return `Stock: ${item.stock} ${item.uom}`;
-        }
-        if (item.item_qty !== undefined && item.uom_code) {
-            return `Stock: ${item.item_qty} ${item.uom_code}`;
-        }
-        return "Stock: N/A";
-    };
-
-    const getCategoryInfo = (item) => {
-        if (item.isBarcodeItem) {
-            const barcodeType = item.barcode_type || "Standard";
-            const supplierBarcode = item.is_supplier_barcode === "Y" ? "Supplier" : "";
-            return supplierBarcode ? `Barcode - ${barcodeType} (${supplierBarcode})` : `Barcode - ${barcodeType}`;
-        }
-        return item.category || item.item_type || "General";
-    };
-
-    const getUnitPrice = (item) => {
-        const price = item.price || item.price1;
-        return price ? `$${parseFloat(price).toFixed(2)}` : "Price: N/A";
-    };
-
-    const getBarcodeStatusInfo = (item) => {
-        if (!item.isBarcodeItem) return null;
-
-        const status = item.valid === "Y" ? "Valid" : "Invalid";
-        const isDefault = item.is_default === "Y";
-
-        return {
-            status,
-            isDefault,
-            tooltip: `${status} ${item.barcode_type} barcode${isDefault ? " (Default)" : ""}`,
-        };
-    };
-
-    const handleClearSearch = () => {
-        setSearchQuery("");
-    };
-
+    // --------------------------
+    // JSX
+    // --------------------------
     return (
-        <Dialog
-            open={open}
-            onClose={onClose}
-            maxWidth="lg"
-            fullWidth
-            PaperProps={{
-                sx: {
-                    borderRadius: 1,
-                    // maxWidth: 500,
-                    maxHeight: "90dvh",
-                },
-            }}
-        >
+        <Dialog open={!!open} onClose={onClose} maxWidth="md" fullWidth PaperProps={{ sx: { borderRadius: 2, maxHeight: "90dvh" } }}>
+            {/* ---------------- HEADER ---------------- */}
             <DialogTitle sx={{ pb: 1.5, pt: 2.5 }}>
-                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <Typography variant="h6" sx={{ display: "flex", alignItems: "center", fontSize: "1.1rem" }}>
-                        <StorageRounded sx={{ color: "#9333ea", mr: 1.5, fontSize: 22 }} />
-                        Select Materials
-                    </Typography>
-                    <IconButton onClick={onClose} size="small" sx={{ padding: 0.75 }}>
-                        <CloseIcon sx={{ fontSize: 20 }} />
+                <Box
+                    sx={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                    }}
+                >
+                    <Box>
+                        <Typography
+                            variant="h6"
+                            sx={{
+                                display: "flex",
+                                alignItems: "center",
+                                fontSize: "1.1rem",
+                            }}
+                        >
+                            <StorageRounded sx={{ color: "#9333ea", mr: 1.5, fontSize: 22 }} />
+                            Insight 360 Data
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                            Select items to add
+                        </Typography>
+                    </Box>
+
+                    <IconButton onClick={onClose} size="small">
+                        <CloseIcon />
                     </IconButton>
                 </Box>
             </DialogTitle>
 
-            <DialogContent sx={{ p: 1, pt: 1 }}>
-                {/* Search Section */}
-                <Box sx={{ paddingTop: "0.6rem" }}>
-                    <TextField
-                        fullWidth
-                        placeholder="Search by product name, code, barcode description..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        size="small"
-                        sx={{ mb: 2 }}
-                        InputProps={{
-                            startAdornment: (
-                                <InputAdornment position="start">
-                                    <SearchIcon color="action" fontSize="small" />
-                                </InputAdornment>
-                            ),
-                            endAdornment: loading ? (
-                                <InputAdornment position="end">
-                                    <CircularProgress size={20} />
-                                </InputAdornment>
-                            ) : searchQuery ? (
-                                <InputAdornment position="end">
-                                    <IconButton size="small" onClick={handleClearSearch}>
-                                        <CloseIcon fontSize="small" />
-                                    </IconButton>
-                                </InputAdornment>
-                            ) : null,
-                            sx: { fontSize: "0.9rem", height: "42px" },
-                        }}
-                    />
-                </Box>
+            {/* ---------------- CONTENT ---------------- */}
+            <DialogContent sx={{ p: 2 }}>
+                {/* --- Search --- */}
+                <TextField
+                    fullWidth
+                    placeholder="Search by name, code, supplier..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e?.target?.value ?? "")}
+                    size="small"
+                    sx={{ my: 1 }}
+                    InputProps={{
+                        sx: { borderRadius: 1 },
+                        startAdornment: (
+                            <InputAdornment position="start">
+                                <SearchIcon color="action" fontSize="small" />
+                            </InputAdornment>
+                        ),
+                        endAdornment: searchQuery && (
+                            <InputAdornment position="end">
+                                <IconButton size="small" onClick={clearSearch}>
+                                    <CloseIcon fontSize="small" />
+                                </IconButton>
+                            </InputAdornment>
+                        ),
+                    }}
+                />
 
-                {/* Tabs Section */}
-                <Box sx={{ display: "flex", gap: 1, mb: 2.5 }}>
-                    {tabs.map((tab) => (
+                {/* --- Tabs --- */}
+                <Box sx={{ display: "flex", gap: 1, mb: 2 }}>
+                    {tabs?.map((tab) => (
                         <Chip
-                            key={tab.id}
-                            label={tab.label}
-                            variant={activeTab === tab.id ? "filled" : "outlined"}
-                            onClick={() => setActiveTab(tab.id)}
+                            key={tab?.id}
+                            label={`${tab?.label} (${tab?.count ?? 0})`}
+                            variant={activeTab === tab?.id ? "filled" : "outlined"}
+                            onClick={() => setActiveTab(tab?.id)}
                             size="small"
                             sx={{
                                 flex: 1,
                                 fontSize: "0.8rem",
                                 height: "32px",
-                                border: "none",
                                 borderRadius: "8px",
-                                backgroundColor: activeTab === tab.id ? "#9333ea" : "#f8fafc",
-                                color: activeTab === tab.id ? "white" : "#64748b",
-                                borderColor: activeTab === tab.id ? "#9333ea" : "#e2e8f0",
-                                "&:hover": {
-                                    backgroundColor: activeTab === tab.id ? "#7c3aed" : "#f1f5f9",
-                                },
+                                backgroundColor: activeTab === tab?.id ? "#9333ea" : "#f8fafc",
+                                color: activeTab === tab?.id ? "white" : "#64748b",
                             }}
                         />
                     ))}
                 </Box>
 
-                {/* Selection Header */}
-                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+                {/* --- Selection Info --- */}
+                <Box
+                    sx={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        mb: 1,
+                    }}
+                >
                     <Typography variant="body2" color="text.secondary">
-                        {selectedItems.length} of {displayItems.length} selected
+                        {selectedItems?.length ?? 0} of {displayItems?.length ?? 0} selected
                     </Typography>
-                    <Button size="small" onClick={handleSelectAll} disabled={displayItems.length === 0} sx={{ fontSize: "0.75rem", fontWeight: 600 }}>
-                        {selectedItems.length === displayItems.length ? "Deselect All" : "Select All"}
+
+                    <Button
+                        onClick={handleSelectAll}
+                        size="small"
+                        sx={{
+                            borderRadius: "6px",
+                            textTransform: "none",
+                            fontWeight: 500,
+                        }}
+                    >
+                        {selectedItems?.length === displayItems?.length ? "Deselect All" : "Select All"}
                     </Button>
                 </Box>
 
-                <Divider sx={{ mb: 2 }} />
+                <Divider sx={{ mb: 1 }} />
 
-                {/* Materials List */}
+                {/* --- Items List --- */}
                 <List sx={{ maxHeight: 350, overflow: "auto", py: 0 }}>
-                    {loading && allItemsWithBarcodes.length === 0 ? (
-                        <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
-                            <CircularProgress size={30} />
-                        </Box>
-                    ) : displayItems.length > 0 ? (
-                        displayItems.map((item, index) => {
-                            const barcodeInfo = getBarcodeStatusInfo(item);
-
-                            return (
-                                <ListItem
-                                    key={item.uniqueId || index}
-                                    sx={{
-                                        border: "1px solid #e2e8f0",
-                                        borderRadius: "8px",
-                                        mb: 1,
-                                        py: 1.5,
-                                        cursor: "pointer",
-                                        backgroundColor: isItemSelected(item) ? "#f0f9ff" : "white",
-                                        borderColor: isItemSelected(item) ? "#0ea5e9" : "#e2e8f0",
-                                        opacity: barcodeInfo && barcodeInfo.status === "Invalid" ? 0.7 : 1,
-                                        "&:hover": {
-                                            backgroundColor: isItemSelected(item) ? "#e0f2fe" : "#f8fafc",
-                                            borderColor: isItemSelected(item) ? "#0ea5e9" : "#cbd5e1",
-                                        },
-                                    }}
-                                    onClick={() => handleToggleSelect(item)}
-                                >
-                                    {/* Checkbox */}
-                                    <Checkbox
-                                        checked={isItemSelected(item)}
-                                        onChange={() => handleToggleSelect(item)}
-                                        onClick={(e) => e.stopPropagation()}
-                                        icon={<CheckBoxOutlineBlankIcon />}
-                                        checkedIcon={<CheckBoxIcon />}
-                                        sx={{
-                                            mr: 1.5,
-                                            color: isItemSelected(item) ? "#0ea5e9" : "#64748b",
-                                            "&.Mui-checked": {
-                                                color: "#0ea5e9",
-                                            },
-                                        }}
-                                    />
-
-                                    {/* Item Icon */}
-                                    <Tooltip title={barcodeInfo?.tooltip || "Product"} arrow>
-                                        <Box
-                                            sx={{
-                                                width: 32,
-                                                height: 32,
-                                                backgroundColor: isItemSelected(item) ? "#0ea5e9" : item.isBarcodeItem ? (barcodeInfo?.status === "Valid" ? "#dcfce7" : "#fef2f2") : "#dbeafe",
-                                                borderRadius: "6px",
-                                                display: "flex",
-                                                alignItems: "center",
-                                                justifyContent: "center",
-                                                mr: 2,
-                                                flexShrink: 0,
-                                                border: item.isBarcodeItem ? (barcodeInfo?.status === "Valid" ? "1px solid #bbf7d0" : "1px solid #fecaca") : "none",
-                                            }}
-                                        >
-                                            {item.isBarcodeItem ? (
-                                                <BarcodeIcon
-                                                    sx={{
-                                                        fontSize: 18,
-                                                        color: isItemSelected(item) ? "white" : barcodeInfo?.status === "Valid" ? "#16a34a" : "#dc2626",
-                                                    }}
-                                                />
-                                            ) : (
-                                                <InventoryIcon
-                                                    sx={{
-                                                        fontSize: 18,
-                                                        color: isItemSelected(item) ? "white" : "#2563eb",
-                                                    }}
-                                                />
-                                            )}
-                                        </Box>
-                                    </Tooltip>
-
-                                    {/* Item Details */}
-                                    <ListItemText
-                                        primary={
-                                            <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
-                                                <Typography variant="body2" fontWeight="600" sx={{ fontSize: "0.9rem", lineHeight: 1.3, mb: 0.5 }}>
-                                                    {getItemitem_desc(item)}
-                                                </Typography>
-                                                {barcodeInfo?.isDefault && (
-                                                    <Chip
-                                                        label="Default"
-                                                        size="small"
-                                                        sx={{
-                                                            height: "18px",
-                                                            fontSize: "0.55rem",
-                                                            backgroundColor: "#dcfce7",
-                                                            color: "#166534",
-                                                        }}
-                                                    />
-                                                )}
-                                                {barcodeInfo && barcodeInfo.status === "Invalid" && (
-                                                    <Chip
-                                                        label="Invalid"
-                                                        size="small"
-                                                        sx={{
-                                                            height: "18px",
-                                                            fontSize: "0.55rem",
-                                                            backgroundColor: "#fef2f2",
-                                                            color: "#dc2626",
-                                                        }}
-                                                    />
-                                                )}
-                                            </Box>
-                                        }
-                                        secondary={
-                                            <Box>
-                                                <Typography variant="caption" sx={{ fontSize: "0.75rem", color: "#64748b", display: "block" }}>
-                                                    {getItemitem_code(item)} • {getStockInfo(item)}
-                                                </Typography>
-                                                <Box sx={{ display: "flex", gap: 1, mt: 0.5, alignItems: "center", flexWrap: "wrap" }}>
-                                                    <Typography variant="caption" sx={{ fontSize: "0.7rem", color: "#94a3b8" }}>
-                                                        {getCategoryInfo(item)}
-                                                    </Typography>
-                                                    <Typography variant="caption" sx={{ fontSize: "0.7rem", color: "#16a34a", fontWeight: 600 }}>
-                                                        {getUnitPrice(item)}
-                                                    </Typography>
-                                                    {item.uom && (
-                                                        <Typography variant="caption" sx={{ fontSize: "0.65rem", color: "#6366f1", fontStyle: "italic" }}>
-                                                            UOM: {item.uom}
-                                                        </Typography>
-                                                    )}
-                                                </Box>
-                                                {item.isBarcodeItem && item.barcode_type && (
-                                                    <Typography variant="caption" sx={{ fontSize: "0.65rem", color: "#8b5cf6", display: "block", mt: 0.5 }}>
-                                                        Type: {item.barcode_type}
-                                                    </Typography>
-                                                )}
-                                            </Box>
-                                        }
-                                        sx={{ my: 0, flex: 1 }}
-                                    />
-                                </ListItem>
-                            );
-                        })
-                    ) : (
-                        <Box sx={{ textAlign: "center", py: 4 }}>
-                            <InventoryIcon sx={{ color: "#cbd5e1", fontSize: 48, mb: 1 }} />
-                            <Typography variant="body2" color="text.secondary">
-                                {searchQuery
-                                    ? "No materials found matching your search"
-                                    : activeTab === "barcode"
-                                    ? "No valid barcode items available"
-                                    : activeTab === "products"
-                                    ? "No products available"
-                                    : "No materials available"}
+                    {/* Loader */}
+                    {reportLoading ? (
+                        <Box
+                            sx={{
+                                display: "flex",
+                                justifyContent: "center",
+                                alignItems: "center",
+                                py: 4,
+                            }}
+                        >
+                            <CircularProgress size={32} />
+                            <Typography sx={{ ml: 2 }} color="text.secondary">
+                                Loading items...
                             </Typography>
+                        </Box>
+                    ) : displayItems?.length === 0 ? (
+                        // Empty State
+                        <Box sx={{ textAlign: "center", py: 4 }}>
+                            <InventoryIcon sx={{ fontSize: 48, color: "#cbd5e1", mb: 1 }} />
+                            <Typography color="text.secondary">No items found</Typography>
+
                             {searchQuery && (
-                                <Button variant="text" size="small" onClick={handleClearSearch} sx={{ mt: 1 }}>
+                                <Button variant="text" size="small" onClick={clearSearch} sx={{ mt: 1 }}>
                                     Clear search
                                 </Button>
                             )}
                         </Box>
+                    ) : (
+                        // Render Items
+                        displayItems?.map?.((item, idx) => {
+                            const salesStatus = getSalesStatus(item);
+                            const itemSelected = isSelected(item);
+
+                            return (
+                                <ListItem
+                                    key={item?.item_code || idx}
+                                    sx={{
+                                        border: "1px solid",
+                                        borderColor: itemSelected ? "#9333ea" : "#e2e8f0",
+                                        borderRadius: "8px",
+                                        mb: 1,
+                                        py: 1.5,
+                                        cursor: "pointer",
+                                        backgroundColor: itemSelected ? "#faf5ff" : "white",
+                                        transition: "0.2s ease",
+                                        "&:hover": {
+                                            borderColor: "#9333ea",
+                                            backgroundColor: itemSelected ? "#faf5ff" : "#f8fafc",
+                                        },
+                                    }}
+                                    onClick={() => toggleSelect(item)}
+                                >
+                                    {/* Checkbox */}
+                                    <Checkbox checked={!!itemSelected} onClick={(e) => e.stopPropagation()} sx={{ mr: 1.5 }} />
+
+                                    {/* Sales Icon */}
+                                    <Box
+                                        sx={{
+                                            width: 36,
+                                            height: 36,
+                                            borderRadius: "8px",
+                                            backgroundColor: `${salesStatus?.color}15`,
+                                            border: `1px solid ${salesStatus?.color}30`,
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            mr: 2,
+                                        }}
+                                    >
+                                        <Box sx={{ color: salesStatus?.color }}>{salesStatus?.icon}</Box>
+                                    </Box>
+
+                                    {/* Item Text */}
+                                    <ListItemText
+                                        primary={
+                                            <Typography fontWeight="600" sx={{ fontSize: "0.95rem", mb: 0.5 }}>
+                                                {item?.item_des || "--"}
+                                            </Typography>
+                                        }
+                                        secondary={
+                                            <Box>
+                                                <Typography
+                                                    variant="caption"
+                                                    sx={{
+                                                        display: "block",
+                                                        color: "#64748b",
+                                                        mb: 0.5,
+                                                    }}
+                                                >
+                                                    {item?.item_code || "--"} • {item?.supp_code || "--"}
+                                                </Typography>
+
+                                                <Box
+                                                    sx={{
+                                                        display: "flex",
+                                                        gap: 2,
+                                                        alignItems: "center",
+                                                    }}
+                                                >
+                                                    <Typography
+                                                        variant="caption"
+                                                        sx={{
+                                                            color: "#475569",
+                                                            fontWeight: 500,
+                                                        }}
+                                                    >
+                                                        Stock: {item?.current_stock ?? 0}
+                                                    </Typography>
+
+                                                    <Tooltip title="Sales history months">
+                                                        <Typography
+                                                            variant="caption"
+                                                            sx={{
+                                                                color: salesStatus?.color,
+                                                                fontWeight: 500,
+                                                                display: "flex",
+                                                                alignItems: "center",
+                                                                gap: 0.5,
+                                                            }}
+                                                        >
+                                                            {salesStatus?.label}
+                                                        </Typography>
+                                                    </Tooltip>
+                                                </Box>
+                                            </Box>
+                                        }
+                                    />
+                                </ListItem>
+                            );
+                        })
                     )}
                 </List>
 
-                {/* Stats Info */}
-                {displayItems.length > 0 && (
+                {/* --- Stats Footer --- */}
+                {displayItems?.length > 0 && (
                     <Box sx={{ mt: 1, mb: 1 }}>
                         <Typography variant="caption" color="text.secondary">
-                            Showing {displayItems.length} items • With barcodes: {displayItems.filter((item) => item.isBarcodeItem).length} • Products only: {displayItems.filter((item) => !item.isBarcodeItem).length}
+                            All: {tabs?.[0]?.count ?? 0} • With Sales: {tabs?.[1]?.count ?? 0} • No Sales: {tabs?.[2]?.count ?? 0}
                         </Typography>
                     </Box>
                 )}
 
-                {/* Action Buttons */}
+                {/* --- Action Buttons --- */}
                 <Box sx={{ display: "flex", gap: 1.5, mt: 2 }}>
                     <Button
-                        variant="outlined"
                         fullWidth
+                        variant="outlined"
                         onClick={onClose}
                         sx={{
-                            py: 1,
                             borderRadius: "8px",
-                            fontWeight: 600,
-                            fontSize: "0.85rem",
-                            borderColor: "#d1d5db",
-                            "&:hover": {
-                                borderColor: "#9ca3af",
-                                backgroundColor: "#f9fafb",
-                            },
+                            py: 1,
+                            textTransform: "none",
+                            fontWeight: 500,
                         }}
                     >
                         Cancel
                     </Button>
+
                     <GradientButton
                         fullWidth
-                        disabled={selectedItems.length === 0}
+                        disabled={!selectedItems?.length}
+                        onClick={handleImport}
                         sx={{
-                            py: 1,
                             borderRadius: "8px",
-                            fontSize: "0.85rem",
-                            fontWeight: 600,
+                            py: 1,
+                            textTransform: "none",
+                            fontWeight: 500,
                         }}
-                        onClick={handleImportSelected}
                     >
-                        Import Selected ({selectedItems.length})
+                        Import Selected ({selectedItems?.length ?? 0})
                     </GradientButton>
                 </Box>
             </DialogContent>

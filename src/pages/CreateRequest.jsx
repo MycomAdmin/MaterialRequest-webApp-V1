@@ -37,8 +37,9 @@ import { useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import AppLayout from "../components/layout/AppLayout";
+import AddItemsModal from "../components/modal/AddItemsModal";
 import BarcodeScannerModal from "../components/modal/BarcodeScannerModal";
-import InsightModal from "../components/modal/InsightModal";
+import InsightButton from "../components/request/InsightButton";
 import { GradientBox, GradientButton } from "../components/ui/StyledComponents";
 import { useNotification } from "../hooks/useNotification";
 import useProductsWithBarcodes from "../hooks/useProductsWithBarcodes";
@@ -46,8 +47,6 @@ import { fetchAllMasterData, selectLocations, selectSubLocations } from "../redu
 import { fetchUpdateMaterialRequest, resetMaterialRequestDataForCreate, updateMaterialRequestDetails, updateMaterialRequestFields } from "../redux/slices/materialRequestSlice";
 import getCurrentDateTimeUTC from "../utils/getCurrentDateTimeUTC";
 import getUserDetails from "../utils/getUserDetails";
-import InsightButton from "../components/request/InsightButton";
-import { fetchReportFiltersList } from "../redux/slices/businessIntelligenceReports";
 
 const CreateRequest = () => {
     const navigate = useNavigate();
@@ -55,7 +54,7 @@ const CreateRequest = () => {
     const { show } = useNotification();
     const scannerRef = useRef(null);
 
-    const [insightModalOpen, setInsightModalOpen] = useState(false);
+    const [addItemsModalOpen, setAddItemsModalOpen] = useState(false);
     const [expandedItems, setExpandedItems] = useState({});
     const [restoreDialogOpen, setRestoreDialogOpen] = useState(false);
     const [barcodeScannerOpen, setBarcodeScannerOpen] = useState(false);
@@ -619,12 +618,12 @@ const CreateRequest = () => {
                                         marginLeft: "auto",
                                     }}
                                 >
-                                    <InsightButton/>
+                                    <InsightButton />
 
                                     <Button
                                         color="primary"
                                         startIcon={<AddIcon sx={{ fontSize: 16 }} />}
-                                        onClick={() => setInsightModalOpen(true)}
+                                        onClick={() => setAddItemsModalOpen(true)}
                                         sx={{
                                             fontWeight: 600,
                                             fontSize: "0.75rem",
@@ -815,7 +814,7 @@ const CreateRequest = () => {
                                     <Typography variant="body2" color="text.secondary">
                                         No items added yet
                                     </Typography>
-                                    <Button variant="text" onClick={() => setInsightModalOpen(true)} sx={{ mt: 1 }}>
+                                    <Button variant="text" onClick={() => setAddItemsModalOpen(true)} sx={{ mt: 1 }}>
                                         Add your first item
                                     </Button>
                                 </Card>
@@ -850,8 +849,8 @@ const CreateRequest = () => {
                     </Box>
                 </Container>
 
-                {/* Insight Modal */}
-                <InsightModal open={insightModalOpen} onClose={() => setInsightModalOpen(false)} onSelectItems={handleAddItems} />
+                {/* Add Items Modal */}
+                <AddItemsModal open={addItemsModalOpen} onClose={() => setAddItemsModalOpen(false)} onSelectItems={handleAddItems} />
 
                 {/* Restore Deleted Items Dialog */}
                 <Dialog open={restoreDialogOpen} onClose={() => setRestoreDialogOpen(false)} maxWidth="sm" fullWidth>
