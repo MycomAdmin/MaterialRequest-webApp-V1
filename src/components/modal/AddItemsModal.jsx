@@ -163,7 +163,7 @@ const AddItemsModal = ({ open, onClose, onSelectItems }) => {
             <DialogTitle sx={{ pb: 1.5, pt: 2.5 }}>
                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <Typography variant="h6" sx={{ display: "flex", alignItems: "center", fontSize: "1.1rem" }}>
-                        <StorageRounded sx={{ color: "#9333ea", mr: 1.5, fontSize: 22 }} />
+                        <StorageRounded sx={{ color: "primary.main", mr: 1.5, fontSize: 22 }} />
                         Select Materials
                     </Typography>
                     <IconButton onClick={onClose} size="small" sx={{ padding: 0.75 }}>
@@ -219,12 +219,14 @@ const AddItemsModal = ({ open, onClose, onSelectItems }) => {
                                 height: "32px",
                                 border: "none",
                                 borderRadius: "8px",
-                                backgroundColor: activeTab === tab.id ? "#9333ea" : "#f8fafc",
+                                backgroundColor: activeTab === tab.id ? "primary.main" : "#f8fafc",
                                 color: activeTab === tab.id ? "white" : "#64748b",
                                 borderColor: activeTab === tab.id ? "#9333ea" : "#e2e8f0",
                                 "&:hover": {
-                                    backgroundColor: activeTab === tab.id ? "#7c3aed" : "#f1f5f9",
+                                    backgroundColor: activeTab === tab.id ? "primary.main" : "#f1f5f9",
+                                    boxShadow: "0 4px 10px rgba(0, 0, 0, 0.1)",
                                 },
+                                boxShadow: "0 4px 10px rgba(0, 0, 0, 0.1)"
                             }}
                         />
                     ))}

@@ -178,7 +178,7 @@ const InsightModal = ({ open, onClose, onSelectItems }) => {
                     {tabs?.map((tab) => (
                         <Chip
                             key={tab?.id}
-                            label={`${tab?.label} (${tab?.count ?? 0})`}
+                            label={`${tab?.label}`}
                             variant={activeTab === tab?.id ? "filled" : "outlined"}
                             onClick={() => setActiveTab(tab?.id)}
                             size="small"
@@ -189,6 +189,12 @@ const InsightModal = ({ open, onClose, onSelectItems }) => {
                                 borderRadius: "8px",
                                 backgroundColor: activeTab === tab?.id ? "#9333ea" : "#f8fafc",
                                 color: activeTab === tab?.id ? "white" : "#64748b",
+                                border: "none",
+                                boxShadow: "0 4px 10px rgba(0, 0, 0, 0.1)",
+                                "&:hover": {
+                                    backgroundColor: activeTab === tab.id ? "#9333ea" : "#f1f5f9",
+                                    boxShadow: "0 4px 10px rgba(0, 0, 0, 0.1)",
+                                },
                             }}
                         />
                     ))}

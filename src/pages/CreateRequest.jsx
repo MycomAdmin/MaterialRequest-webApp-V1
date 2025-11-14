@@ -12,33 +12,14 @@ import {
     Restore as RestoreIcon,
     Save as SaveIcon,
 } from "@mui/icons-material";
-import {
-    Box,
-    Button,
-    Card,
-    CardContent,
-    Chip,
-    Collapse,
-    Container,
-    Dialog,
-    DialogActions,
-    DialogContent,
-    DialogTitle,
-    IconButton,
-    List,
-    ListItem,
-    ListItemIcon,
-    ListItemText,
-    MenuItem,
-    TextField,
-    Typography,
-} from "@mui/material";
+import { Box, Button, Card, CardContent, Chip, Collapse, Container, IconButton, MenuItem, TextField, Typography } from "@mui/material";
 import { useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import AppLayout from "../components/layout/AppLayout";
 import AddItemsModal from "../components/modal/AddItemsModal";
 import BarcodeScannerModal from "../components/modal/BarcodeScannerModal";
+import RestoreDialog from "../components/modal/RestoreDialog";
 import InsightButton from "../components/request/InsightButton";
 import { GradientBox, GradientButton } from "../components/ui/StyledComponents";
 import { useNotification } from "../hooks/useNotification";
@@ -862,51 +843,7 @@ const CreateRequest = () => {
                 <AddItemsModal open={addItemsModalOpen} onClose={() => setAddItemsModalOpen(false)} onSelectItems={handleAddItems} />
 
                 {/* Restore Deleted Items Dialog */}
-                <Dialog open={restoreDialogOpen} onClose={() => setRestoreDialogOpen(false)} maxWidth="sm" fullWidth>
-                    <DialogTitle>
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                            <RestoreIcon color="primary" />
-                            Restore Deleted Items
-                        </Box>
-                    </DialogTitle>
-                    <DialogContent>
-                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                            Select items to restore from the deleted list:
-                        </Typography>
-                        <List>
-                            {deletedItems.map((item) => (
-                                <ListItem
-                                    key={item.line_number}
-                                    secondaryAction={
-                                        <IconButton edge="end" onClick={() => handleRestoreItem(item.line_number)} color="primary">
-                                            <RestoreIcon />
-                                        </IconButton>
-                                    }
-                                >
-                                    <ListItemIcon>
-                                        <InventoryIcon color="action" />
-                                    </ListItemIcon>
-                                    <ListItemText
-                                        primary={item.item_desc}
-                                        secondary={
-                                            <Box>
-                                                <Typography variant="caption" display="block">
-                                                    {item.item_code} • Line #{item.line_number}
-                                                </Typography>
-                                                <Typography variant="caption" color="text.secondary">
-                                                    Qty: {item.pack_qty} • ${item.unit_price}
-                                                </Typography>
-                                            </Box>
-                                        }
-                                    />
-                                </ListItem>
-                            ))}
-                        </List>
-                    </DialogContent>
-                    <DialogActions>
-                        <Button onClick={() => setRestoreDialogOpen(false)}>Close</Button>
-                    </DialogActions>
-                </Dialog>
+                <RestoreDialog open={restoreDialogOpen} onClose={() => setRestoreDialogOpen(false)} deletedItems={deletedItems} onRestoreItem={handleRestoreItem} />
             </Box>
 
             <BarcodeScannerModal
