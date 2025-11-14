@@ -187,96 +187,108 @@ const CreateRequest = () => {
         dispatch(updateMaterialRequestDetails(updatedItems));
     };
 
-    // Handle removing items (NO LINE NUMBER RECALCULATION)
-    const handleRemoveItem = (index) => {
-        const itemToRemove = materialRequestDataForCreate.details[0].data[index];
+    // Find item index by line_number
+    const findItemIndexByLineNumber = (lineNumber) => {
+        return materialRequestDataForCreate.details[0].data.findIndex((item) => item.line_number === lineNumber);
+    };
+
+    // Handle removing items using line_number as unique identifier
+    const handleRemoveItem = (lineNumber) => {
+        const itemIndex = findItemIndexByLineNumber(lineNumber);
+        if (itemIndex === -1) return;
+
+        const itemToRemove = materialRequestDataForCreate.details[0].data[itemIndex];
         let updatedItems;
 
         if (itemToRemove._upd === "C" && !itemToRemove.tran_id) {
-            // If it's a newly created item (not saved yet), just remove it
-            updatedItems = materialRequestDataForCreate.details[0].data.filter((_, i) => i !== index);
+            // If it's a newly created item (not saved yet), remove by filtering
+            updatedItems = materialRequestDataForCreate.details[0].data.filter((item) => item.line_number !== lineNumber);
         } else {
             // If it's an existing item, mark it for deletion
-            updatedItems = materialRequestDataForCreate.details[0].data.map((item, i) => (i === index ? { ...item, _upd: "D" } : item));
+            updatedItems = materialRequestDataForCreate.details[0].data.map((item) => (item.line_number === lineNumber ? { ...item, _upd: "D" } : item));
         }
 
         dispatch(updateMaterialRequestDetails(updatedItems));
 
         // Remove from expanded items state
         const newExpandedItems = { ...expandedItems };
-        delete newExpandedItems[index];
+        delete newExpandedItems[lineNumber];
         setExpandedItems(newExpandedItems);
     };
 
-    // Handle restoring deleted items (NO LINE NUMBER RECALCULATION)
-    const handleRestoreItem = (index) => {
-        const updatedItems = materialRequestDataForCreate.details[0].data.map((item, i) => (i === index ? { ...item, _upd: "U" } : item));
+    // Handle restoring deleted items using line_number as unique identifier
+    const handleRestoreItem = (lineNumber) => {
+        const updatedItems = materialRequestDataForCreate.details[0].data.map((item) => (item.line_number === lineNumber ? { ...item, _upd: "U" } : item));
         dispatch(updateMaterialRequestDetails(updatedItems));
     };
 
-    // Handle quantity changes
-    const handleQuantityChange = (index, value) => {
-        const updatedItems = [...materialRequestDataForCreate.details[0].data];
-        const currentItem = updatedItems[index];
-
-        // Allow empty string during typing
-        if (value === "") {
-            updatedItems[index] = {
-                ...currentItem,
-                pack_qty: "",
-                _upd: currentItem._upd === "C" ? "C" : "U",
-            };
-        } else {
-            const qty = Number(value);
-            updatedItems[index] = {
-                ...currentItem,
-                pack_qty: qty,
-                total_amount: (currentItem.unit_price || 0) * qty,
-                net_amount: (currentItem.unit_price || 0) * qty,
-                _upd: currentItem._upd === "C" ? "C" : "U",
-            };
-        }
-
-        dispatch(updateMaterialRequestDetails(updatedItems));
-    };
-
-    // Handle unit price changes
-    const handleUnitPriceChange = (index, value) => {
-        const updatedItems = [...materialRequestDataForCreate.details[0].data];
-        const currentItem = updatedItems[index];
-
-        // Allow empty input during editing
-        if (value === "") {
-            updatedItems[index] = {
-                ...currentItem,
-                unit_price: "",
-                _upd: currentItem._upd === "C" ? "C" : "U",
-            };
-        } else {
-            const price = Number(value);
-            updatedItems[index] = {
-                ...currentItem,
-                unit_price: price,
-                total_amount: price * (currentItem.pack_qty || 0),
-                net_amount: price * (currentItem.pack_qty || 0),
-                _upd: currentItem._upd === "C" ? "C" : "U",
-            };
-        }
+    // Handle quantity changes using line_number as unique identifier
+    const handleQuantityChange = (lineNumber, value) => {
+        const updatedItems = materialRequestDataForCreate.details[0].data.map((item) => {
+            if (item.line_number === lineNumber) {
+                // Allow empty string during typing
+                if (value === "") {
+                    return {
+                        ...item,
+                        pack_qty: "",
+                        _upd: item._upd === "C" ? "C" : "U",
+                    };
+                } else {
+                    const qty = Number(value);
+                    return {
+                        ...item,
+                        pack_qty: qty,
+                        total_amount: (item.unit_price || 0) * qty,
+                        net_amount: (item.unit_price || 0) * qty,
+                        _upd: item._upd === "C" ? "C" : "U",
+                    };
+                }
+            }
+            return item;
+        });
 
         dispatch(updateMaterialRequestDetails(updatedItems));
     };
 
-    // Toggle item expansion (local state only)
-    const toggleItemExpand = (index) => {
+    // Handle unit price changes using line_number as unique identifier
+    const handleUnitPriceChange = (lineNumber, value) => {
+        const updatedItems = materialRequestDataForCreate.details[0].data.map((item) => {
+            if (item.line_number === lineNumber) {
+                // Allow empty input during editing
+                if (value === "") {
+                    return {
+                        ...item,
+                        unit_price: "",
+                        _upd: item._upd === "C" ? "C" : "U",
+                    };
+                } else {
+                    const price = Number(value);
+                    return {
+                        ...item,
+                        unit_price: price,
+                        total_amount: price * (item.pack_qty || 0),
+                        net_amount: price * (item.pack_qty || 0),
+                        _upd: item._upd === "C" ? "C" : "U",
+                    };
+                }
+            }
+            return item;
+        });
+
+        dispatch(updateMaterialRequestDetails(updatedItems));
+    };
+
+    // Toggle item expansion using line_number as unique identifier
+    const toggleItemExpand = (lineNumber) => {
         setExpandedItems((prev) => ({
             ...prev,
-            [index]: !prev[index],
+            [lineNumber]: !prev[lineNumber],
         }));
     };
 
-    // Check if item is expanded
-    const isItemExpanded = (index) => {
-        return !!expandedItems[index];
+    // Check if item is expanded using line_number as unique identifier
+    const isItemExpanded = (lineNumber) => {
+        return !!expandedItems[lineNumber];
     };
 
     // Calculate total amount
@@ -288,12 +300,7 @@ const CreateRequest = () => {
 
     // Get deleted items for restoration
     const getDeletedItems = () => {
-        return materialRequestDataForCreate.details[0].data
-            .filter((item) => item._upd === "D")
-            .map((item, index) => ({
-                ...item,
-                originalIndex: materialRequestDataForCreate.details[0].data.indexOf(item),
-            }));
+        return materialRequestDataForCreate.details[0].data.filter((item) => item._upd === "D");
     };
 
     // Prepare data for API submission
@@ -531,68 +538,70 @@ const CreateRequest = () => {
                     {/* Items Section */}
                     <Card sx={{ p: 2, mb: 2, borderRadius: "12px" }}>
                         <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2, flexWrap: "wrap", gap: "0.7rem", width: "100%" }}>
-                            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
-                                <Box sx={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
+                            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", gap: "5px" }}>
+                                <Box sx={{ display: "flex", justifyContent: "space-between", width: "100%", flexWrap: "wrap" }}>
                                     <Typography variant="subtitle1" fontWeight="600" sx={{ display: "flex", alignItems: "center", fontSize: "0.9rem" }}>
                                         <InventoryIcon sx={{ color: "#4361ee", mr: 1, fontSize: 18 }} />
                                         Request Items ({activeItems.length})
                                     </Typography>
-                                    <Button
-                                        variant="outlined"
-                                        startIcon={<DocumentScanner sx={{ fontSize: 16, transform: "rotate(90deg)", transition: "transform 0.3s ease" }} />}
-                                        onClick={() => setBarcodeScannerOpen(true)}
-                                        sx={{
-                                            backgroundColor: "#e0f7fa",
-                                            color: "#00796b",
-                                            borderColor: "#b2ebf2",
-                                            fontWeight: 600,
-                                            fontSize: "0.75rem",
-                                            py: 0.75,
-                                            px: 1.75,
-                                            borderRadius: "8px",
-                                            textTransform: "none",
-                                            "&:hover": {
-                                                backgroundColor: "#b2ebf2",
-                                                borderColor: "#80deea",
-                                            },
-                                        }}
-                                    >
-                                        Scan Barcode
-                                    </Button>
-                                </Box>
-                                {isEditMode && deletedItems.length > 0 && (
-                                    <Button
-                                        variant="outlined"
-                                        startIcon={<RestoreIcon sx={{ fontSize: 16 }} />}
-                                        onClick={() => setRestoreDialogOpen(true)}
-                                        sx={{
-                                            backgroundColor: "#f0fdf4",
-                                            color: "#16a34a",
-                                            borderColor: "#bbf7d0",
-                                            fontWeight: 600,
-                                            fontSize: "0.75rem",
-                                            py: 0.75,
-                                            px: 1.75,
-                                            borderRadius: "8px",
-                                            textTransform: "none",
-                                            minWidth: "auto",
-                                            "&:hover": {
-                                                backgroundColor: "#dcfce7",
-                                                borderColor: "#4ade80",
-                                                transform: "translateY(-1px)",
-                                                boxShadow: "0 4px 10px rgba(22, 163, 74, 0.15)",
-                                            },
-                                            transition: "all 0.2s ease",
-                                        }}
-                                    >
-                                        Restore
-                                        {deletedItems.length > 0 && (
-                                            <Typography variant="caption" color="error" sx={{ ml: "0.2rem" }}>
-                                                ({deletedItems.length})
-                                            </Typography>
+                                    <Box sx={{ display: "flex", gap: "5px", ml: "auto" }}>
+                                        {isEditMode && deletedItems.length > 0 && (
+                                            <Button
+                                                variant="outlined"
+                                                startIcon={<RestoreIcon sx={{ fontSize: 16 }} />}
+                                                onClick={() => setRestoreDialogOpen(true)}
+                                                sx={{
+                                                    backgroundColor: "#f0fdf4",
+                                                    color: "#16a34a",
+                                                    borderColor: "#bbf7d0",
+                                                    fontWeight: 600,
+                                                    fontSize: "0.75rem",
+                                                    py: 0.75,
+                                                    px: 1.75,
+                                                    borderRadius: "8px",
+                                                    textTransform: "none",
+                                                    minWidth: "auto",
+                                                    "&:hover": {
+                                                        backgroundColor: "#dcfce7",
+                                                        borderColor: "#4ade80",
+                                                        transform: "translateY(-1px)",
+                                                        boxShadow: "0 4px 10px rgba(22, 163, 74, 0.15)",
+                                                    },
+                                                    transition: "all 0.2s ease",
+                                                }}
+                                            >
+                                                Restore
+                                                {deletedItems.length > 0 && (
+                                                    <Typography variant="caption" color="error" sx={{ ml: "0.2rem" }}>
+                                                        ({deletedItems.length})
+                                                    </Typography>
+                                                )}
+                                            </Button>
                                         )}
-                                    </Button>
-                                )}
+                                        <Button
+                                            variant="outlined"
+                                            startIcon={<DocumentScanner sx={{ fontSize: 16, transform: "rotate(90deg)", transition: "transform 0.3s ease" }} />}
+                                            onClick={() => setBarcodeScannerOpen(true)}
+                                            sx={{
+                                                backgroundColor: "#e0f7fa",
+                                                color: "#00796b",
+                                                borderColor: "#b2ebf2",
+                                                fontWeight: 600,
+                                                fontSize: "0.75rem",
+                                                py: 0.75,
+                                                px: 1.75,
+                                                borderRadius: "8px",
+                                                textTransform: "none",
+                                                "&:hover": {
+                                                    backgroundColor: "#b2ebf2",
+                                                    borderColor: "#80deea",
+                                                },
+                                            }}
+                                        >
+                                            Scan Barcode
+                                        </Button>
+                                    </Box>
+                                </Box>
                             </Box>
 
                             <Box
@@ -642,9 +651,9 @@ const CreateRequest = () => {
 
                         {/* Items List */}
                         <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-                            {activeItems.map((item, index) => (
+                            {activeItems.map((item) => (
                                 <Card
-                                    key={index}
+                                    key={item.line_number}
                                     variant="outlined"
                                     sx={{
                                         borderRadius: "12px",
@@ -661,7 +670,7 @@ const CreateRequest = () => {
                                                 cursor: "pointer",
                                                 gap: 1,
                                             }}
-                                            onClick={() => toggleItemExpand(index)}
+                                            onClick={() => toggleItemExpand(item.line_number)}
                                         >
                                             <Box
                                                 sx={{
@@ -720,7 +729,7 @@ const CreateRequest = () => {
                                                     sx={{ padding: 1 }}
                                                     onClick={(e) => {
                                                         e.stopPropagation();
-                                                        handleRemoveItem(index);
+                                                        handleRemoveItem(item.line_number);
                                                     }}
                                                 >
                                                     <DeleteIcon sx={{ fontSize: 18 }} />
@@ -731,7 +740,7 @@ const CreateRequest = () => {
                                                 <ExpandMoreIcon
                                                     sx={{
                                                         fontSize: 16,
-                                                        transform: isItemExpanded(index) ? "rotate(180deg)" : "none",
+                                                        transform: isItemExpanded(item.line_number) ? "rotate(180deg)" : "none",
                                                         transition: "transform 0.2s ease",
                                                     }}
                                                 />
@@ -739,7 +748,7 @@ const CreateRequest = () => {
                                         </Box>
 
                                         {/* Expanded Content */}
-                                        <Collapse in={isItemExpanded(index)}>
+                                        <Collapse in={isItemExpanded(item.line_number)}>
                                             <Box sx={{ mt: 1.5, display: "flex", flexDirection: "column", gap: 1.5 }}>
                                                 <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1 }}>
                                                     <TextField
@@ -770,7 +779,7 @@ const CreateRequest = () => {
                                                         label="Quantity"
                                                         type="number"
                                                         value={item.pack_qty}
-                                                        onChange={(e) => handleQuantityChange(index, e.target.value)}
+                                                        onChange={(e) => handleQuantityChange(item.line_number, e.target.value)}
                                                         size="small"
                                                         inputProps={{
                                                             min: 1,
@@ -782,7 +791,7 @@ const CreateRequest = () => {
                                                         label="Unit Price"
                                                         type="number"
                                                         value={item.unit_price}
-                                                        onChange={(e) => handleUnitPriceChange(index, e.target.value)}
+                                                        onChange={(e) => handleUnitPriceChange(item.line_number, e.target.value)}
                                                         size="small"
                                                         inputProps={{
                                                             min: 0,
@@ -865,11 +874,11 @@ const CreateRequest = () => {
                             Select items to restore from the deleted list:
                         </Typography>
                         <List>
-                            {deletedItems.map((item, index) => (
+                            {deletedItems.map((item) => (
                                 <ListItem
-                                    key={index}
+                                    key={item.line_number}
                                     secondaryAction={
-                                        <IconButton edge="end" onClick={() => handleRestoreItem(item.originalIndex)} color="primary">
+                                        <IconButton edge="end" onClick={() => handleRestoreItem(item.line_number)} color="primary">
                                             <RestoreIcon />
                                         </IconButton>
                                     }
